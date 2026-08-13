@@ -23,14 +23,15 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }).addTo(map);
 
-const bounds = [];
+const stopByName = Object.fromEntries(route.map((stop) => [stop.name, stop]));
+const mapBounds = L.latLngBounds([]);
 
-route.forEach((stop, index) => {
+route.forEach((stop) => {
     const latLng = [stop.lat, stop.lon];
-    bounds.push(latLng);
-
     const status = stop.status || "unknown";
     const color = statusColors[status] || statusColors.unknown;
+
+    mapBounds.extend(latLng);
 
     L.circleMarker(latLng, {
         radius: 7,
@@ -44,33 +45,50 @@ route.forEach((stop, index) => {
             `Status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>`
         )
         .addTo(map);
-
-    if (index < route.length - 1) {
-        const next = route[index + 1];
-        const segmentStatus = stop.status || "unknown";
-        const segmentColor = statusColors[segmentStatus] || statusColors.unknown;
-
-        L.polyline(
-            [latLng, [next.lat, next.lon]],
-            {
-                color: segmentColor,
-                weight: 7,
-                opacity: 0.85,
-                lineCap: "round",
-            }
-        )
-            .bindPopup(
-                `<strong>${stop.name} → ${next.name}</strong><br>` +
-                `Navigation status: <span class="popup-status">${statusLabels[segmentStatus] || statusLabels.unknown}</span>`
-            )
-            .addTo(map);
-    }
 });
 
-if (bounds.length > 0) {
-    map.fitBounds(bounds, {
-        padding: [30, 30],
+fetch("/static/data/danube-route.geojson")
+    .then((response) => {
+        if (!response.ok) {
+            throw new Error(`Unable to load Danube geometry (${response.status})`);
+        }
+        return response.json();
+    })
+    .then((geojson) => {
+        const riverLayer = L.geoJSON(geojson, {
+            style: (feature) => {
+                const fromStop = stopByName[feature.properties.from];
+                const status = fromStop?.status || "unknown";
+
+                return {
+                    color: statusColors[status] || statusColors.unknown,
+                    weight: 7,
+                    opacity: 0.85,
+                    lineCap: "round",
+                    lineJoin: "round",
+                };
+            },
+            onEachFeature: (feature, layer) => {
+                const from = feature.properties.from;
+                const to = feature.properties.to;
+                const fromStop = stopByName[from];
+                const status = fromStop?.status || "unknown";
+
+                layer.bindPopup(
+                    `<strong>${from} → ${to}</strong><br>` +
+                    `Navigation status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>`
+                );
+            },
+        }).addTo(map);
+
+        mapBounds.extend(riverLayer.getBounds());
+        map.fitBounds(mapBounds, { padding: [30, 30] });
+    })
+    .catch((error) => {
+        console.error(error);
+        if (mapBounds.isValid()) {
+            map.fitBounds(mapBounds, { padding: [30, 30] });
+        } else {
+            map.setView([48.5, 15.5], 6);
+        }
     });
-} else {
-    map.setView([48.5, 15.5], 6);
-}
