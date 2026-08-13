@@ -78,7 +78,7 @@
                         <ul class="gauge-list">
                             {% for segment in austria_segments %}
                                 <li>
-                                    <strong>{{ segment.from }} → {{ segment.to }}:</strong>
+                                    <strong>{{ segment["from"] }} → {{ segment["to"] }}:</strong>
                                     {{ segment.status|upper }}
                                     {% if segment.minimum_depth_m is not none %}
                                         — {{ "%.2f"|format(segment.minimum_depth_m) }} m minimum
