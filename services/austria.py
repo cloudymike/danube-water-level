@@ -127,7 +127,12 @@ def fetch_austria_data() -> AustriaData:
             headers={"User-Agent": "danube-water-level/0.1"},
         )
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
+
+        # DoRIS serves UTF-8 content, but the HTTP response does not always provide
+        # enough charset information for requests to decode response.text correctly.
+        # Parsing the raw bytes with an explicit UTF-8 encoding prevents mojibake such
+        # as "WeiÃenkirchen" instead of "Weißenkirchen".
+        soup = BeautifulSoup(response.content, "html.parser", from_encoding="utf-8")
 
         gauges_table = _table_after_heading(soup, "Waterlevels")
         shallow_table = _table_after_heading(soup, "Shallow sections")
