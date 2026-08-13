@@ -1,69 +1,51 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Danube Cruise Navigation Status</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header class="site-header"><div class="container"><h1>Danube Cruise Navigation Status</h1><p>Budapest → Regensburg</p></div></header>
-    <main class="container">
-        <section class="status-card">
-            <h2>Route status</h2>
-            <p class="notice">The full Budapest→Regensburg route is now connected to official hydrology sources in Hungary, Slovakia, Austria, and Germany. Green means the available authoritative data establish adequate navigation conditions; yellow means passability remains undetermined; red means an official restriction, high-water threshold, or insufficient clearance establishes that the configured vessel cannot pass.</p>
-            <div class="legend" aria-label="Navigation status legend">
-                <span><i class="status-dot green"></i> PASSABLE — available data establish adequate navigation conditions</span>
-                <span><i class="status-dot yellow"></i> UNDETERMINED — available data do not establish passability or non-passability</span>
-                <span><i class="status-dot red"></i> NOT PASSABLE — available data establish a restriction or insufficient clearance</span>
-            </div>
-            <div class="route-list">
-                {% for location in route %}
-                <div class="route-stop"><span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}{% if location.official_fairway_depth_m is defined and location.official_fairway_depth_m is not none %}<small> — official {{ location.official_depth_scope }} depth {{ "%.2f"|format(location.official_fairway_depth_m) }} m at RNW</small>{% endif %}</span></div>
-                {% endfor %}
-            </div>
+<header class="site-header"><div class="container"><h1>Danube Cruise Navigation Status</h1><p>Budapest → Regensburg</p></div></header>
+<main class="container">
+<section class="status-card">
+<h2>Route status</h2>
+<p class="notice">The map now separates <strong>authoritative navigation status</strong> from <strong>operational cruise evidence</strong>. Green/red come from official depth, closure, lock, or high-water information. Lime/orange refine otherwise-undetermined sections using recent observed cruise operations; they are evidence, not navigation guarantees.</p>
+<div class="legend" aria-label="Navigation status legend">
+<span><i class="status-dot green"></i> PASSABLE — authoritative data establish adequate conditions</span>
+<span><i class="status-dot lime"></i> OBSERVED PASSABLE — recent comparable cruise traffic supports passage</span>
+<span><i class="status-dot yellow"></i> UNDETERMINED — insufficient evidence either way</span>
+<span><i class="status-dot orange"></i> OBSERVED DISRUPTION — recent cruise operations were altered</span>
+<span><i class="status-dot red"></i> NOT PASSABLE — authoritative data establish a restriction or insufficient clearance</span>
+</div>
+<div class="route-list">
+{% for location in route %}
+<div class="route-stop"><span class="status-dot {{ location.display_status|default(location.status) }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.operational_evidence is defined %}<small> — {{ location.operational_evidence.summary }}</small>{% elif location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}</span></div>
+{% endfor %}
+</div>
 
-            <div class="data-panel">
-                <h3>Hungary / Slovakia live-data status</h3>
-                <p>Overall Budapest→Bratislava status: <strong>{{ east_status|upper }}</strong><br><small>Hydroinfo and SHMÚ provide authoritative water levels, but the sources used here do not provide a vessel-specific fairway-depth guarantee. Normal conditions therefore remain yellow rather than being promoted to green solely from gauge height.</small></p>
-                <details open><summary>Eastern route segments</summary><ul class="gauge-list">
-                    {% for segment in eastern_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
-                </ul></details>
-                <details><summary>Hungarian Hydroinfo gauges</summary>{% if hungary.error %}<p class="data-error">Hydroinfo unavailable: {{ hungary.error }}</p>{% else %}<ul class="gauge-list">{% for gauge in hungary.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm }} cm{% if gauge.observation_label %} — {{ gauge.observation_label }}{% endif %}</li>{% endfor %}</ul>{% endif %}</details>
-                <details><summary>Slovak SHMÚ gauges</summary>{% if slovakia.error %}<p class="data-error">SHMÚ unavailable: {{ slovakia.error }}</p>{% else %}<ul class="gauge-list">{% for gauge in slovakia.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm }} cm{% if gauge.flood_stage_1_cm is not none %}, first flood-activity threshold {{ gauge.flood_stage_1_cm|int }} cm{% endif %}</li>{% endfor %}</ul>{% endif %}</details>
-            </div>
+<div class="data-panel"><h3>Current cruise operational evidence</h3>
+<p><small>This layer is time-limited and does not override authoritative green or red. Current public reporting describes severe low-water disruption on the Danube, including a recent AmaSofia Vilshofen→Budapest sailing whose vessel stopped at Melk and whose guests continued toward Budapest by land.</small></p>
+{% if operational_evidence %}<ul class="gauge-list">{% for item in operational_evidence %}<li><strong>{{ item.from_stop }} → {{ item.to_stop }}: {{ item.signal|replace('_',' ')|upper }}</strong><br><small>{{ item.summary }} Confidence: {{ item.confidence }}. Evidence expires {{ item.expires_at }}. Source: {{ item.source_name }}.</small></li>{% endfor %}</ul>{% else %}<p>No current time-bounded operational evidence is loaded.</p>{% endif %}
+</div>
 
-            <div class="data-panel">
-                <h3>Austria live-data status</h3>
-                {% if austria.error %}<p class="data-error">DoRIS data unavailable: {{ austria.error }}</p>{% else %}
-                <p>Overall Austrian status: <strong>{{ austria_status|upper }}</strong><br>Assumed vessel draft: {{ "%.2f"|format(vessel_draft_m) }} m<br>Safety margin: {{ "%.2f"|format(safety_margin_m) }} m<br>Wildungsmauer high-water threshold: {{ high_water_threshold_cm }} cm{% if austria_minimum_depth is not none %}<br>Lowest mapped deep-channel depth: {{ "%.2f"|format(austria_minimum_depth) }} m{% endif %}</p>
-                {% if austria.source_updated_at %}<p><small>DoRIS source timestamp: {{ austria.source_updated_at }}</small></p>{% endif %}
-                <details open><summary>Austrian route segments</summary><ul class="gauge-list">
-                    {% for segment in austria_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.minimum_depth_m is not none %} — {{ "%.2f"|format(segment.minimum_depth_m) }} m minimum{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.closures %}<br><small>Closures: {% for item in segment.closures %}{{ item.name }} ({{ item.status }}){% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}{% if segment.locks %}<br><small>Locks: {% for lock in segment.locks %}{{ lock.name }} — left {{ lock.left_chamber }}, right {{ lock.right_chamber }}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
-                </ul></details>
-                <details><summary>Official section closures / openings</summary><ul class="gauge-list">{% for item in austria.closures %}<li>{{ item.name }}: {{ item.status }}</li>{% endfor %}</ul></details>
-                <details><summary>Current Austrian lock states</summary><ul class="gauge-list">{% for lock in austria.locks %}<li>{{ lock.name }}: left {{ lock.left_chamber }}, right {{ lock.right_chamber }}</li>{% endfor %}</ul></details>
-                <details><summary>Current Austrian gauges</summary><ul class="gauge-list">{% for gauge in austria.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm|int }} cm</li>{% endfor %}</ul></details>
-                <details><summary>Current shallow sections</summary><ul class="gauge-list">{% for section in austria.shallow_sections %}<li>{{ section.name }} (km {{ "%.1f"|format(section.river_km_from) }}–{{ "%.1f"|format(section.river_km_to) }}): {% if section.deep_channel_depth_m is not none %}{{ "%.2f"|format(section.deep_channel_depth_m) }} m deep channel{% else %}depth unavailable{% endif %}</li>{% endfor %}</ul></details>
-                {% endif %}
-            </div>
+<div class="data-panel"><h3>Hungary & Slovakia live-data status</h3>
+<p>Authoritative hydrology status: <strong>{{ east_status|upper }}</strong>. Gauge height alone is not converted into cruise-vessel fairway depth, so ordinary conditions remain undetermined unless stronger evidence is available.</p>
+<details open><summary>Eastern route segments</summary><ul class="gauge-list">{% for segment in eastern_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small></li>{% endfor %}</ul></details>
+</div>
 
-            <div class="data-panel">
-                <h3>Germany live-data status</h3>
-                {% if germany.error %}<p class="data-error">PEGELONLINE data unavailable: {{ germany.error }}</p>{% else %}
-                <p>Overall German status: <strong>{{ germany_status|upper }}</strong><br>Passau-Danube shipping high-water threshold: {{ passau_high_water_cm }} cm<br>Pfelling RNW: {{ pfelling_rnw_cm }} cm<br>Official Straubing→Sand fairway depth at RNW: {{ "%.2f"|format(straubing_sand_depth_m) }} m<br><small>Yellow means undetermined, not necessarily marginal water. The 2.65 m depth applies only to the completed km 2322.0–2311.5 subreach, so it is not extrapolated to the entire Straubing→Vilshofen reach.</small></p>
-                <details open><summary>German route segments</summary><ul class="gauge-list">
-                    {% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.official_fairway_depth_m is defined and segment.official_fairway_depth_m is not none %} — official {{ "%.2f"|format(segment.official_fairway_depth_m) }} m for {{ segment.official_depth_scope }}{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %} (RNW {{ gauge.rnw_cm|int }}){% endif %}{% if gauge.hsw_cm is not none %} (HSW {{ gauge.hsw_cm|int }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
-                </ul></details>
-                <details><summary>Current German Danube gauges</summary><ul class="gauge-list">{% for gauge in germany.gauges %}<li>{{ gauge.name }}{% if gauge.river_km is not none %} (km {{ "%.1f"|format(gauge.river_km) }}){% endif %}: {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %}, RNW {{ gauge.rnw_cm|int }} cm{% endif %}{% if gauge.hsw_cm is not none %}, HSW {{ gauge.hsw_cm|int }} cm{% endif %}{% if gauge.shipping_state %}, shipping state {{ gauge.shipping_state }}{% endif %}</li>{% endfor %}</ul></details>
-                {% endif %}
-            </div>
-        </section>
-        <section class="map-card"><div class="map-card-heading"><div><h2>Danube map</h2><p>Click a stop or route section for details.</p></div></div><div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div></section>
-    </main>
-    <script>window.DANUBE_ROUTE = {{ route | tojson }};</script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
-</body>
-</html>
+<div class="data-panel"><h3>Austria live-data status</h3>
+{% if austria.error %}<p class="data-error">DoRIS data unavailable: {{ austria.error }}</p>{% else %}<p>Overall Austrian status: <strong>{{ austria_status|upper }}</strong><br>Assumed vessel draft: {{ "%.2f"|format(vessel_draft_m) }} m; safety margin: {{ "%.2f"|format(safety_margin_m) }} m{% if austria_minimum_depth is not none %}<br>Lowest mapped deep-channel depth: {{ "%.2f"|format(austria_minimum_depth) }} m{% endif %}</p><details><summary>Austrian route segments</summary><ul class="gauge-list">{% for segment in austria_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.minimum_depth_m is not none %} — {{ "%.2f"|format(segment.minimum_depth_m) }} m minimum{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small></li>{% endfor %}</ul></details>{% endif %}
+</div>
+
+<div class="data-panel"><h3>Germany live-data status</h3>
+{% if germany.error %}<p class="data-error">PEGELONLINE data unavailable: {{ germany.error }}</p>{% else %}<p>Overall German authoritative status: <strong>{{ germany_status|upper }}</strong><br>Passau high-water threshold: {{ passau_high_water_cm }} cm; Pfelling RNW: {{ pfelling_rnw_cm }} cm; official Straubing→Sand fairway depth at RNW: {{ "%.2f"|format(straubing_sand_depth_m) }} m.</p><details open><summary>German route segments</summary><ul class="gauge-list">{% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small></li>{% endfor %}</ul></details>{% endif %}
+</div>
+</section>
+<section class="map-card"><div class="map-card-heading"><div><h2>Danube map</h2><p>Click a stop or route section for authoritative and operational evidence.</p></div></div><div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div></section>
+</main>
+<script>window.DANUBE_ROUTE = {{ route | tojson }};</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body></html>
