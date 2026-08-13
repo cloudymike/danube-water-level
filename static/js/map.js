@@ -8,11 +8,22 @@ const statusColors = {
 };
 
 const statusLabels = {
-    green: "Passable",
-    yellow: "Undetermined",
-    red: "Not passable",
+    green: "Passable margin",
+    yellow: "Undetermined / close to limit",
+    red: "Below assumed draft",
     unknown: "Undetermined",
 };
+
+function detailsForStop(stop) {
+    const lines = [];
+    if (stop.status_source) {
+        lines.push(`Source: ${stop.status_source}`);
+    }
+    if (stop.minimum_depth_m !== undefined && stop.minimum_depth_m !== null) {
+        lines.push(`Minimum deep-channel depth: ${Number(stop.minimum_depth_m).toFixed(2)} m`);
+    }
+    return lines.length ? `<br>${lines.join("<br>")}` : "";
+}
 
 const map = L.map("map", {
     scrollWheelZoom: true,
@@ -42,7 +53,8 @@ route.forEach((stop) => {
     })
         .bindPopup(
             `<strong>${stop.name}</strong><br>` +
-            `Status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>`
+            `Status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>` +
+            detailsForStop(stop)
         )
         .addTo(map);
 });
@@ -76,7 +88,8 @@ fetch("/static/data/danube-route.geojson")
 
                 layer.bindPopup(
                     `<strong>${from} → ${to}</strong><br>` +
-                    `Navigation status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>`
+                    `Navigation status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>` +
+                    detailsForStop(fromStop || {})
                 );
             },
         }).addTo(map);
