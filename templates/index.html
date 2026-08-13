@@ -21,7 +21,7 @@
 </div>
 <div class="route-list">
 {% for location in route %}
-<div class="route-stop"><span class="status-dot {{ location.display_status|default(location.status) }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.operational_evidence is defined %}<small> — {{ location.operational_evidence.summary }}</small>{% elif location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}</span></div>
+<div class="route-stop"><span class="status-dot {{ location.display_status|default(location.status) }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.operational_evidence is defined %}<small> — {{ location.operational_evidence.summary }}</small>{% elif location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% elif location.official_fairway_depth_m is defined and location.official_fairway_depth_m is not none %}<small> — official RNW fairway depth {{ "%.2f"|format(location.official_fairway_depth_m) }} m</small>{% endif %}</span></div>
 {% endfor %}
 </div>
 
@@ -40,7 +40,9 @@
 </div>
 
 <div class="data-panel"><h3>Germany live-data status</h3>
-{% if germany.error %}<p class="data-error">PEGELONLINE data unavailable: {{ germany.error }}</p>{% else %}<p>Overall German authoritative status: <strong>{{ germany_status|upper }}</strong><br>Passau high-water threshold: {{ passau_high_water_cm }} cm; Pfelling RNW: {{ pfelling_rnw_cm }} cm; official Straubing→Sand fairway depth at RNW: {{ "%.2f"|format(straubing_sand_depth_m) }} m.</p><details open><summary>German route segments</summary><ul class="gauge-list">{% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small></li>{% endfor %}</ul></details>{% endif %}
+{% if germany.error %}<p class="data-error">PEGELONLINE data unavailable: {{ germany.error }}</p>{% else %}
+<p>Overall German authoritative status: <strong>{{ germany_status|upper }}</strong><br>Configured vessel requirement: {{ "%.2f"|format(vessel_draft_m + safety_margin_m) }} m. The German calculation now uses the official WSV fairway-depth table at the applicable RNW reference gauges: approximately 2.70 m for Passau→Vilshofen, a controlling 2.00 m for Vilshofen→Straubing, and 2.90 m for Straubing→Regensburg. If the required RNW gauges are below their reference values, the section remains yellow rather than extrapolating a depth.</p>
+<details open><summary>German route segments</summary><ul class="gauge-list">{% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.official_fairway_depth_m is defined and segment.official_fairway_depth_m is not none %} — official RNW depth {{ "%.2f"|format(segment.official_fairway_depth_m) }} m{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Reference gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %} (RNW {{ gauge.rnw_cm|int }}){% endif %}{% if gauge.hsw_cm is not none %} (HSW {{ gauge.hsw_cm|int }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
 </div>
 </section>
 <section class="map-card"><div class="map-card-heading"><div><h2>Danube map</h2><p>Click a stop or route section for authoritative and operational evidence.</p></div></div><div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div></section>
