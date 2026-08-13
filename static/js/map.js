@@ -8,10 +8,10 @@ const statusColors = {
 };
 
 const statusLabels = {
-    green: "No identified restriction",
-    yellow: "Caution / reduced margin",
-    red: "Navigation blocked / threshold exceeded",
-    unknown: "Undetermined",
+    green: "PASSABLE — available data establish adequate navigation conditions",
+    yellow: "UNDETERMINED — available data do not establish passability or non-passability",
+    red: "NOT PASSABLE — available data establish a restriction or insufficient clearance",
+    unknown: "UNDETERMINED — insufficient authoritative data",
 };
 
 function detailsForStop(stop) {
