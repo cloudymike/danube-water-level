@@ -4,147 +4,44 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Danube Cruise Navigation Status</title>
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""
-    >
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <header class="site-header">
-        <div class="container">
-            <h1>Danube Cruise Navigation Status</h1>
-            <p>Budapest → Regensburg</p>
-        </div>
-    </header>
-
+    <header class="site-header"><div class="container"><h1>Danube Cruise Navigation Status</h1><p>Budapest → Regensburg</p></div></header>
     <main class="container">
         <section class="status-card">
             <h2>Route status</h2>
-            <p class="notice">
-                Austria is connected to current official DoRIS fairway information.
-                Each Austrian route segment is now evaluated independently from the shallow
-                sections that fall inside its river-kilometer range. Other countries remain
-                undetermined. This remains an indicative low-water prototype, not a guarantee
-                that a particular cruise vessel can pass.
-            </p>
-
+            <p class="notice">Austria is connected to current official DoRIS fairway information. Austrian segments now combine low-water depth, official navigation closures, current lock-chamber availability, and the published Wildungsmauer high-water threshold. Other countries remain undetermined. This is still an indicative prototype rather than a vessel-specific sailing guarantee.</p>
             <div class="legend" aria-label="Navigation status legend">
-                <span><i class="status-dot green"></i> Passable margin</span>
-                <span><i class="status-dot yellow"></i> Undetermined / close to limit</span>
-                <span><i class="status-dot red"></i> Below assumed draft</span>
+                <span><i class="status-dot green"></i> No identified restriction</span>
+                <span><i class="status-dot yellow"></i> Caution / reduced margin</span>
+                <span><i class="status-dot red"></i> Navigation blocked / threshold exceeded</span>
             </div>
-
             <div class="route-list">
                 {% for location in route %}
-                <div class="route-stop">
-                    <span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span>
-                    <span>
-                        {{ location.name }}
-                        {% if location.segment_to is defined %}
-                            → {{ location.segment_to }}
-                        {% endif %}
-                        {% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}
-                            <small>— min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>
-                        {% elif location.segment_reason is defined %}
-                            <small>— {{ location.segment_reason }}</small>
-                        {% endif %}
-                    </span>
-                </div>
+                <div class="route-stop"><span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}</span></div>
                 {% endfor %}
             </div>
-
             <div class="data-panel">
-                <h3>Austria live-data prototype</h3>
-                {% if austria.error %}
-                    <p class="data-error">DoRIS data unavailable: {{ austria.error }}</p>
-                {% else %}
-                    <p>
-                        Overall Austrian low-water status: <strong>{{ austria_status|upper }}</strong><br>
-                        Assumed vessel draft: {{ "%.2f"|format(vessel_draft_m) }} m<br>
-                        Safety margin: {{ "%.2f"|format(safety_margin_m) }} m
-                        {% if austria_minimum_depth is not none %}
-                            <br>Lowest mapped deep-channel depth: {{ "%.2f"|format(austria_minimum_depth) }} m
-                        {% endif %}
-                    </p>
-                    {% if austria.source_updated_at %}
-                        <p><small>DoRIS source timestamp: {{ austria.source_updated_at }}</small></p>
-                    {% endif %}
-
-                    <details open>
-                        <summary>Austrian route segments</summary>
-                        <ul class="gauge-list">
-                            {% for segment in austria_segments %}
-                                <li>
-                                    <strong>{{ segment["from"] }} → {{ segment["to"] }}:</strong>
-                                    {{ segment.status|upper }}
-                                    {% if segment.minimum_depth_m is not none %}
-                                        — {{ "%.2f"|format(segment.minimum_depth_m) }} m minimum
-                                    {% else %}
-                                        — no mapped DoRIS shallow section
-                                    {% endif %}
-                                    {% if segment.shallow_sections %}
-                                        <br><small>
-                                            Shallow sections:
-                                            {% for section in segment.shallow_sections %}
-                                                {{ section.name }}{% if not loop.last %}, {% endif %}
-                                            {% endfor %}
-                                        </small>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </details>
-
-                    <details>
-                        <summary>Current Austrian gauges</summary>
-                        <ul class="gauge-list">
-                            {% for gauge in austria.gauges %}
-                                <li>{{ gauge.name }}: {{ gauge.level_cm|int }} cm</li>
-                            {% endfor %}
-                        </ul>
-                    </details>
-                    <details>
-                        <summary>Current shallow sections</summary>
-                        <ul class="gauge-list">
-                            {% for section in austria.shallow_sections %}
-                                <li>
-                                    {{ section.name }}
-                                    (km {{ "%.1f"|format(section.river_km_from) }}–{{ "%.1f"|format(section.river_km_to) }}):
-                                    {% if section.deep_channel_depth_m is not none %}
-                                        {{ "%.2f"|format(section.deep_channel_depth_m) }} m deep channel
-                                    {% else %}
-                                        depth unavailable
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    </details>
+                <h3>Austria live-data status</h3>
+                {% if austria.error %}<p class="data-error">DoRIS data unavailable: {{ austria.error }}</p>{% else %}
+                <p>Overall Austrian status: <strong>{{ austria_status|upper }}</strong><br>Assumed vessel draft: {{ "%.2f"|format(vessel_draft_m) }} m<br>Safety margin: {{ "%.2f"|format(safety_margin_m) }} m<br>Wildungsmauer high-water threshold: {{ high_water_threshold_cm }} cm{% if austria_minimum_depth is not none %}<br>Lowest mapped deep-channel depth: {{ "%.2f"|format(austria_minimum_depth) }} m{% endif %}</p>
+                {% if austria.source_updated_at %}<p><small>DoRIS source timestamp: {{ austria.source_updated_at }}</small></p>{% endif %}
+                <details open><summary>Austrian route segments</summary><ul class="gauge-list">
+                    {% for segment in austria_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.minimum_depth_m is not none %} — {{ "%.2f"|format(segment.minimum_depth_m) }} m minimum{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.closures %}<br><small>Closures: {% for item in segment.closures %}{{ item.name }} ({{ item.status }}){% if not loop.last %}, {% endif %}{% endfor %}</small>{% endif %}{% if segment.locks %}<br><small>Locks: {% for lock in segment.locks %}{{ lock.name }} — left {{ lock.left_chamber }}, right {{ lock.right_chamber }}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
+                </ul></details>
+                <details><summary>Official section closures / openings</summary><ul class="gauge-list">{% for item in austria.closures %}<li>{{ item.name }}: {{ item.status }}</li>{% endfor %}</ul></details>
+                <details><summary>Current Austrian lock states</summary><ul class="gauge-list">{% for lock in austria.locks %}<li>{{ lock.name }}: left {{ lock.left_chamber }}, right {{ lock.right_chamber }}</li>{% endfor %}</ul></details>
+                <details><summary>Current Austrian gauges</summary><ul class="gauge-list">{% for gauge in austria.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm|int }} cm</li>{% endfor %}</ul></details>
+                <details><summary>Current shallow sections</summary><ul class="gauge-list">{% for section in austria.shallow_sections %}<li>{{ section.name }} (km {{ "%.1f"|format(section.river_km_from) }}–{{ "%.1f"|format(section.river_km_to) }}): {% if section.deep_channel_depth_m is not none %}{{ "%.2f"|format(section.deep_channel_depth_m) }} m deep channel{% else %}depth unavailable{% endif %}</li>{% endfor %}</ul></details>
                 {% endif %}
             </div>
         </section>
-
-        <section class="map-card">
-            <div class="map-card-heading">
-                <div>
-                    <h2>Danube map</h2>
-                    <p>Click a stop or route section for details.</p>
-                </div>
-            </div>
-            <div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div>
-        </section>
+        <section class="map-card"><div class="map-card-heading"><div><h2>Danube map</h2><p>Click a stop or route section for details.</p></div></div><div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div></section>
     </main>
-
-    <script>
-        window.DANUBE_ROUTE = {{ route | tojson }};
-    </script>
-    <script
-        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""
-    ></script>
+    <script>window.DANUBE_ROUTE = {{ route | tojson }};</script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 </body>
 </html>
