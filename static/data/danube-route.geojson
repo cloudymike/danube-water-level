@@ -2,7 +2,9 @@
   "type": "FeatureCollection",
   "name": "danube-budapest-regensburg",
   "features": [
-    {"type":"Feature","properties":{"from":"Budapest","to":"Bratislava"},"geometry":{"type":"LineString","coordinates":[[19.0402,47.4979],[19.0756,47.6694],[18.9709,47.7854],[18.7415,47.7928],[18.3180,47.7580],[18.1191,47.7432],[17.8200,47.7900],[17.5800,47.8900],[17.3000,48.0200],[17.1077,48.1486]]}},
+    {"type":"Feature","properties":{"from":"Budapest","to":"Esztergom"},"geometry":{"type":"LineString","coordinates":[[19.0402,47.4979],[19.0756,47.6694],[18.9709,47.7854],[18.7403,47.7856]]}},
+    {"type":"Feature","properties":{"from":"Esztergom","to":"Komárno"},"geometry":{"type":"LineString","coordinates":[[18.7403,47.7856],[18.5200,47.7700],[18.3180,47.7580],[18.1298,47.7636]]}},
+    {"type":"Feature","properties":{"from":"Komárno","to":"Bratislava"},"geometry":{"type":"LineString","coordinates":[[18.1298,47.7636],[17.8200,47.7900],[17.5800,47.8900],[17.3000,48.0200],[17.1077,48.1486]]}},
     {"type":"Feature","properties":{"from":"Bratislava","to":"Vienna"},"geometry":{"type":"LineString","coordinates":[[17.1077,48.1486],[16.9450,48.1460],[16.7900,48.1350],[16.7000,48.1400],[16.5500,48.1700],[16.3738,48.2082]]}},
     {"type":"Feature","properties":{"from":"Vienna","to":"Wachau"},"geometry":{"type":"LineString","coordinates":[[16.3738,48.2082],[16.3250,48.3050],[16.1600,48.3250],[16.0580,48.3310],[15.8500,48.3700],[15.6000,48.4100],[15.5200,48.3950]]}},
     {"type":"Feature","properties":{"from":"Wachau","to":"Linz"},"geometry":{"type":"LineString","coordinates":[[15.5200,48.3950],[15.4300,48.3500],[15.3310,48.2270],[15.0840,48.1770],[14.8580,48.2280],[14.6500,48.2450],[14.5170,48.2410],[14.2861,48.3069]]}},
