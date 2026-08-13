@@ -20,6 +20,10 @@ function detailsForStop(stop) {
     if (stop.minimum_depth_m !== undefined && stop.minimum_depth_m !== null) {
         lines.push(`Minimum deep-channel depth: ${Number(stop.minimum_depth_m).toFixed(2)} m`);
     }
+    if (stop.official_fairway_depth_m !== undefined && stop.official_fairway_depth_m !== null) {
+        const scope = stop.official_depth_scope ? ` (${stop.official_depth_scope})` : "";
+        lines.push(`Official fairway depth at RNW: ${Number(stop.official_fairway_depth_m).toFixed(2)} m${scope}`);
+    }
     if (Array.isArray(stop.segment_reasons)) {
         stop.segment_reasons.forEach((reason) => lines.push(reason));
     }
