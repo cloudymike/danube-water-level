@@ -16,6 +16,7 @@ ROUTE = [
     {"name": "Linz", "lat": 48.3069, "lon": 14.2858, "status": "unknown"},
     {"name": "Passau", "lat": 48.5667, "lon": 13.4319, "status": "unknown"},
     {"name": "Vilshofen", "lat": 48.6268, "lon": 13.1877, "status": "unknown"},
+    {"name": "Straubing", "lat": 48.8810, "lon": 12.5730, "status": "unknown"},
     {"name": "Regensburg", "lat": 49.0134, "lon": 12.1016, "status": "unknown"},
 ]
 
@@ -40,6 +41,16 @@ LOCK_RIVER_KM = {
 
 WILDUNGSMAUER_HIGH_WATER_CM = 600
 PASSAU_HIGH_WATER_CM = 780
+
+# WSA/ELWIS announced that the completed Straubing->Sand subreach
+# (Donau-km 2322.0 to 2311.5) provides 2.65 m fairway depth at RNW,
+# with RNW defined as 290 cm at the Pfelling gauge. We use this only
+# for that completed subreach and do not extrapolate it downstream.
+PFELLING_RNW_CM = 290
+STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M = 2.65
+STRAUBING_SAND_KM_FROM = 2322.0
+STRAUBING_SAND_KM_TO = 2311.5
+
 STATUS_RANK = {"unknown": 0, "green": 1, "yellow": 2, "red": 3}
 
 
@@ -180,7 +191,8 @@ def _german_segment_statuses(germany_data):
     if germany_data.error:
         return {
             "Passau": {"from": "Passau", "to": "Vilshofen", "status": "unknown", "gauges": [], "reasons": ["PEGELONLINE data unavailable"]},
-            "Vilshofen": {"from": "Vilshofen", "to": "Regensburg", "status": "unknown", "gauges": [], "reasons": ["PEGELONLINE data unavailable"]},
+            "Vilshofen": {"from": "Vilshofen", "to": "Straubing", "status": "unknown", "gauges": [], "reasons": ["PEGELONLINE data unavailable"]},
+            "Straubing": {"from": "Straubing", "to": "Regensburg", "status": "unknown", "gauges": [], "reasons": ["PEGELONLINE data unavailable"]},
         }
 
     passau = _german_gauge(germany_data, "PASSAU DONAU")
@@ -188,24 +200,62 @@ def _german_segment_statuses(germany_data):
     pfelling = _german_gauge(germany_data, "PFELLING")
     regensburg = _german_gauge(germany_data, "REGENSBURG EISERNE BRÜCKE")
 
-    p_status, p_reason = _gauge_status(hofkirchen or passau)
-    v_status, v_reason = _gauge_status(pfelling or regensburg)
-
-    # The Passau-Danube 780 cm HSW also governs the German/Austrian border section.
+    passau_status, passau_reason = _gauge_status(hofkirchen or passau)
     if passau and passau.get("level_cm") is not None and float(passau["level_cm"]) >= PASSAU_HIGH_WATER_CM:
-        p_status = "red"
-        p_reason = f"Passau Donau {float(passau['level_cm']):.0f} cm is at/above the 780 cm shipping high-water limit"
+        passau_status = "red"
+        passau_reason = f"Passau Donau {float(passau['level_cm']):.0f} cm is at/above the 780 cm shipping high-water limit"
+
+    # Critical free-flowing reach. High water remains decisive. At low water we
+    # distinguish the completed Straubing->Sand subreach from the rest of the reach.
+    pfelling_status, pfelling_reason = _gauge_status(pfelling)
+    critical_status = pfelling_status
+    critical_reasons = [pfelling_reason]
+    official_depth = None
+    official_depth_status = "unknown"
+
+    if pfelling and pfelling.get("level_cm") is not None:
+        pfelling_level = float(pfelling["level_cm"])
+        if pfelling_level >= PFELLING_RNW_CM:
+            official_depth = STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M
+            official_depth_status = _status_for_depth(official_depth)
+            critical_reasons.append(
+                f"Official completed Straubing→Sand subreach (km {STRAUBING_SAND_KM_FROM:.1f}–{STRAUBING_SAND_KM_TO:.1f}) "
+                f"provides {official_depth:.2f} m fairway depth at Pfelling RNW {PFELLING_RNW_CM} cm"
+            )
+        else:
+            critical_reasons.append(
+                "Pfelling is below RNW; the authority does not publish a simple gauge-to-fairway-depth formula, so depth is not extrapolated"
+            )
+
+    # Even when the completed Straubing->Sand subreach is proven green, we retain
+    # yellow for the whole Vilshofen->Straubing display segment because the official
+    # 2.65 m statement does not cover the entire downstream reach to Vilshofen.
+    if critical_status != "red":
+        critical_status = "yellow"
+        critical_reasons.append(
+            "Remaining Straubing→Vilshofen reach has no verified simple fairway-depth relationship in the source used; whole segment stays cautious"
+        )
+
+    regensburg_status, regensburg_reason = _gauge_status(regensburg or pfelling)
 
     return {
         "Passau": {
-            "from": "Passau", "to": "Vilshofen", "status": p_status,
+            "from": "Passau", "to": "Vilshofen", "status": passau_status,
             "gauges": [g for g in (passau, hofkirchen) if g],
-            "reasons": [p_reason, "Low-water yellow indicates RNW caution, not a vessel-specific draft limit"],
+            "reasons": [passau_reason, "Low-water yellow indicates RNW caution, not a vessel-specific draft limit"],
         },
         "Vilshofen": {
-            "from": "Vilshofen", "to": "Regensburg", "status": v_status,
+            "from": "Vilshofen", "to": "Straubing", "status": critical_status,
+            "gauges": [g for g in (hofkirchen, pfelling) if g],
+            "reasons": critical_reasons,
+            "official_fairway_depth_m": official_depth,
+            "official_depth_status": official_depth_status,
+            "official_depth_scope": "Straubing→Sand only",
+        },
+        "Straubing": {
+            "from": "Straubing", "to": "Regensburg", "status": regensburg_status,
             "gauges": [g for g in (pfelling, regensburg) if g],
-            "reasons": [v_reason, "Low-water yellow indicates RNW caution, not a vessel-specific draft limit"],
+            "reasons": [regensburg_reason, "Gauge status only; no vessel-specific depth conversion applied"],
         },
     }
 
@@ -235,9 +285,11 @@ def _combined_route(austria_data, germany_data):
         segment = germany_segments.get(stop["name"])
         if segment:
             stop["status"] = segment["status"]
-            stop["status_source"] = "PEGELONLINE / ELWIS shipping-relevant gauges"
+            stop["status_source"] = "PEGELONLINE / ELWIS shipping gauges + official fairway statement where available"
             stop["segment_to"] = segment["to"]
             stop["segment_reasons"] = segment["reasons"]
+            stop["official_fairway_depth_m"] = segment.get("official_fairway_depth_m")
+            stop["official_depth_scope"] = segment.get("official_depth_scope")
             stop["gauge_states"] = [
                 f"{g['name']}: {g.get('level_cm')} cm"
                 + (f", RNW {g['rnw_cm']:.0f}" if g.get('rnw_cm') is not None else "")
@@ -245,7 +297,6 @@ def _combined_route(austria_data, germany_data):
                 for g in segment["gauges"]
             ]
 
-    # Apply the Passau 780 cm limit to Linz->Passau as well, because it covers the border section.
     passau = _german_gauge(germany_data, "PASSAU DONAU")
     if passau and passau.get("level_cm") is not None and float(passau["level_cm"]) >= PASSAU_HIGH_WATER_CM:
         linz = next((s for s in route if s["name"] == "Linz"), None)
@@ -279,6 +330,8 @@ def index():
         safety_margin_m=SAFETY_MARGIN_M,
         high_water_threshold_cm=WILDUNGSMAUER_HIGH_WATER_CM,
         passau_high_water_cm=PASSAU_HIGH_WATER_CM,
+        pfelling_rnw_cm=PFELLING_RNW_CM,
+        straubing_sand_depth_m=STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M,
     )
 
 
@@ -307,6 +360,9 @@ def api_germany():
         "navigation_status": _germany_navigation_status(germany),
         "segment_statuses": list(_german_segment_statuses(germany).values()),
         "passau_high_water_threshold_cm": PASSAU_HIGH_WATER_CM,
+        "pfelling_rnw_cm": PFELLING_RNW_CM,
+        "straubing_sand_fairway_depth_at_rnw_m": STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M,
+        "straubing_sand_km_range": [STRAUBING_SAND_KM_TO, STRAUBING_SAND_KM_FROM],
     })
     return jsonify(payload)
 
