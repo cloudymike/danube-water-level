@@ -1,7 +1,7 @@
 const route = window.DANUBE_ROUTE || [];
 
 const statusColors = {
-    green: "#16a34a",
+    green: "#166534",
     lime: "#84cc16",
     yellow: "#eab308",
     orange: "#f97316",
