@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Danube Cruise Navigation Status</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    >
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -18,8 +24,9 @@
         <section class="status-card">
             <h2>Route status</h2>
             <p class="notice">
-                Live water-level data has not been connected yet. Route locations are
-                shown as undetermined until navigation data and vessel limits are available.
+                Live water-level data has not been connected yet. Route locations and
+                river sections are shown as undetermined until navigation data and vessel
+                limits are available.
             </p>
 
             <div class="legend" aria-label="Navigation status legend">
@@ -31,7 +38,7 @@
             <div class="route-list">
                 {% for location in route %}
                 <div class="route-stop">
-                    <span class="status-dot yellow"></span>
+                    <span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span>
                     <span>{{ location.name }}</span>
                 </div>
                 {% endfor %}
@@ -39,11 +46,24 @@
         </section>
 
         <section class="map-card">
-            <h2>Danube map</h2>
-            <div id="map-placeholder">
-                Interactive Leaflet map will be added in the next step.
+            <div class="map-card-heading">
+                <div>
+                    <h2>Danube map</h2>
+                    <p>Click a stop or route section for details.</p>
+                </div>
             </div>
+            <div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div>
         </section>
     </main>
+
+    <script>
+        window.DANUBE_ROUTE = {{ route | tojson }};
+    </script>
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 </body>
 </html>
