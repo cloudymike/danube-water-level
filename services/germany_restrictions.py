@@ -1,8 +1,8 @@
 """Fetch current German Danube fairway restrictions from ELWIS.
 
-ELWIS publishes fairway restrictions as Notices to Skippers (NfB).  This
-service queries the current restriction list, follows candidate Danube notices,
-and normalizes their river-km range and restriction text for route logic.
+ELWIS publishes fairway restrictions as Notices to Skippers (NfB). This
+service queries current restriction notices, follows their detail pages, and
+keeps only active notices for the German Danube.
 """
 
 from __future__ import annotations
@@ -17,8 +17,6 @@ import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://www.elwis.de"
-# Current NfB notices carrying restrictions.  ELWIS may return notices for many
-# waterways, so the parser keeps only notices whose result text identifies Donau.
 LIST_URL = (
     BASE_URL
     + "/DE/dynamisch/Nfb/NfbList:elwis_nfb_search:1"
@@ -29,6 +27,7 @@ LIST_URL = (
     + "&searchParams%5BsortOrder%5D=desc"
 )
 REQUEST_TIMEOUT = 10
+MAX_DETAIL_REQUESTS = 60
 GERMAN_DANUBE_KM_MIN = 2201.8
 GERMAN_DANUBE_KM_MAX = 2414.7
 
@@ -50,7 +49,7 @@ class GermanyRestrictionsData:
 
 
 def _number(text: str) -> float | None:
-    """Parse German-formatted river-km/depth numbers such as 2.303,4."""
+    """Parse German-formatted river-km numbers such as 2.303,4."""
     match = re.search(r"(?:\d{1,3}\.)?\d{1,3}(?:,\d+)?", text or "")
     if not match:
         return None
@@ -62,17 +61,17 @@ def _number(text: str) -> float | None:
 
 
 def _candidate_links(html: bytes) -> list[str]:
+    """Return NfB detail links from the current restriction result page.
+
+    We intentionally do not depend on the list page repeating the waterway name
+    beside each link. Detail pages are then filtered strictly to Donau, which is
+    more robust to ELWIS layout changes.
+    """
     soup = BeautifulSoup(html, "html.parser", from_encoding="utf-8")
-    links: list[str] = []
+    links = []
     for anchor in soup.find_all("a", href=True):
         href = str(anchor.get("href"))
-        if "NfbDetailview" not in href:
-            continue
-        context = " ".join(anchor.parent.stripped_strings) if anchor.parent else anchor.get_text(" ", strip=True)
-        # Keep explicit Danube results.  If ELWIS changes the list layout and the
-        # waterway is not repeated in the row, detail parsing below is still safe,
-        # but we avoid following every German notice by default.
-        if "Donau" in context or "Donau" in anchor.get_text(" ", strip=True):
+        if "NfbDetailview" in href:
             links.append(urljoin(BASE_URL, href))
     return list(dict.fromkeys(links))
 
@@ -85,8 +84,6 @@ def _detail_restrictions(html: bytes, url: str) -> list[dict[str, Any]]:
     if "Diese NfB ist abgelaufen" in text:
         return []
 
-    # ELWIS detail pages contain one or more waterway table rows.  Parse table
-    # rows because they retain the locality, km range, and restriction together.
     results: list[dict[str, Any]] = []
     for row in soup.find_all("tr"):
         cells = [" ".join(cell.stripped_strings) for cell in row.find_all(["td", "th"])]
@@ -106,7 +103,7 @@ def _detail_restrictions(html: bytes, url: str) -> list[dict[str, Any]]:
         lowered = restriction_text.casefold()
         if "keine einschränkung" in lowered:
             continue
-        if not any(word in lowered for word in ("einschr", "sperre", "tiefe", "breite", "fahrwasser", "fahrrinne")):
+        if not any(word in lowered for word in ("einschr", "sperre", "tiefe", "breite", "fahrwasser", "fahrrinne", "verzöger")):
             continue
         results.append(
             {
@@ -130,12 +127,11 @@ def fetch_germany_restrictions() -> GermanyRestrictionsData:
         links = _candidate_links(response.content)
 
         restrictions: list[dict[str, Any]] = []
-        for url in links[:30]:
+        for url in links[:MAX_DETAIL_REQUESTS]:
             detail = session.get(url, timeout=REQUEST_TIMEOUT, headers=headers)
             detail.raise_for_status()
             restrictions.extend(_detail_restrictions(detail.content, url))
 
-        # Remove duplicate table representations of the same notice/range.
         unique = []
         seen = set()
         for item in restrictions:
