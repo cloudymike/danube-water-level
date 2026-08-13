@@ -12,15 +12,15 @@
     <main class="container">
         <section class="status-card">
             <h2>Route status</h2>
-            <p class="notice">Austria uses official DoRIS fairway depth, closures, lock availability, and high-water rules. Germany now uses official PEGELONLINE/ELWIS shipping-relevant Danube gauges. German high-water thresholds can produce a red status; falling below RNW produces yellow caution because RNW is not itself a vessel-specific draft limit. Hungary and Slovakia remain undetermined.</p>
+            <p class="notice">Austria uses official DoRIS fairway depth, closures, lock availability, and high-water rules. Germany uses official PEGELONLINE/ELWIS gauges and now separates the critical Vilshofen→Straubing reach. The completed Straubing→Sand subreach has an official 2.65 m fairway depth at Pfelling RNW 290 cm; this value is not extrapolated to the rest of the reach. Hungary and Slovakia remain undetermined.</p>
             <div class="legend" aria-label="Navigation status legend">
                 <span><i class="status-dot green"></i> No identified restriction</span>
-                <span><i class="status-dot yellow"></i> Caution / reduced margin</span>
+                <span><i class="status-dot yellow"></i> Caution / depth not fully proven</span>
                 <span><i class="status-dot red"></i> Navigation blocked / threshold exceeded</span>
             </div>
             <div class="route-list">
                 {% for location in route %}
-                <div class="route-stop"><span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}</span></div>
+                <div class="route-stop"><span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}{% if location.official_fairway_depth_m is defined and location.official_fairway_depth_m is not none %}<small> — official {{ location.official_depth_scope }} depth {{ "%.2f"|format(location.official_fairway_depth_m) }} m at RNW</small>{% endif %}</span></div>
                 {% endfor %}
             </div>
 
@@ -42,9 +42,9 @@
             <div class="data-panel">
                 <h3>Germany live-data status</h3>
                 {% if germany.error %}<p class="data-error">PEGELONLINE data unavailable: {{ germany.error }}</p>{% else %}
-                <p>Overall German status: <strong>{{ germany_status|upper }}</strong><br>Passau-Danube shipping high-water threshold: {{ passau_high_water_cm }} cm<br><small>Below RNW is displayed as yellow caution; it does not by itself mean a cruise vessel cannot pass.</small></p>
+                <p>Overall German status: <strong>{{ germany_status|upper }}</strong><br>Passau-Danube shipping high-water threshold: {{ passau_high_water_cm }} cm<br>Pfelling RNW: {{ pfelling_rnw_cm }} cm<br>Official Straubing→Sand fairway depth at RNW: {{ "%.2f"|format(straubing_sand_depth_m) }} m<br><small>The 2.65 m depth applies only to the completed km 2322.0–2311.5 subreach. The app does not extrapolate it to the entire Straubing→Vilshofen reach.</small></p>
                 <details open><summary>German route segments</summary><ul class="gauge-list">
-                    {% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %} (RNW {{ gauge.rnw_cm|int }}){% endif %}{% if gauge.hsw_cm is not none %} (HSW {{ gauge.hsw_cm|int }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
+                    {% for segment in germany_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong>{% if segment.official_fairway_depth_m is defined and segment.official_fairway_depth_m is not none %} — official {{ "%.2f"|format(segment.official_fairway_depth_m) }} m for {{ segment.official_depth_scope }}{% endif %}<br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %} (RNW {{ gauge.rnw_cm|int }}){% endif %}{% if gauge.hsw_cm is not none %} (HSW {{ gauge.hsw_cm|int }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
                 </ul></details>
                 <details><summary>Current German Danube gauges</summary><ul class="gauge-list">{% for gauge in germany.gauges %}<li>{{ gauge.name }}{% if gauge.river_km is not none %} (km {{ "%.1f"|format(gauge.river_km) }}){% endif %}: {{ gauge.level_cm }} cm{% if gauge.rnw_cm is not none %}, RNW {{ gauge.rnw_cm|int }} cm{% endif %}{% if gauge.hsw_cm is not none %}, HSW {{ gauge.hsw_cm|int }} cm{% endif %}{% if gauge.shipping_state %}, shipping state {{ gauge.shipping_state }}{% endif %}</li>{% endfor %}</ul></details>
                 {% endif %}
