@@ -2,6 +2,12 @@ from flask import Flask, jsonify, render_template
 
 from services.austria import fetch_austria_data
 from services.germany import fetch_germany_data
+from services.germany_restrictions import fetch_germany_restrictions
+from services.germany_status import (
+    apply_german_restrictions_to_route,
+    german_segments as refined_german_segments,
+    germany_overall as refined_germany_overall,
+)
 from services.hungary import fetch_hungary_data
 from services.slovakia import fetch_slovakia_data
 from services.operational import apply_operational_evidence, current_operational_evidence
@@ -20,8 +26,6 @@ from services.navigation import (
     combined_route,
     east_overall,
     eastern_segments,
-    german_segments,
-    germany_overall,
 )
 
 app = Flask(__name__)
@@ -31,13 +35,17 @@ app = Flask(__name__)
 def index():
     austria = fetch_austria_data()
     germany = fetch_germany_data()
+    germany_restrictions = fetch_germany_restrictions()
     hungary = fetch_hungary_data()
     slovakia = fetch_slovakia_data()
 
     operational = current_operational_evidence()
-    route = apply_operational_evidence(combined_route(austria, germany, hungary, slovakia), operational)
+    route = combined_route(austria, germany, hungary, slovakia)
+    route = apply_german_restrictions_to_route(route, germany, germany_restrictions)
+    route = apply_operational_evidence(route, operational)
     austria_status, minimum_depth = austria_overall(austria)
     east_segments = eastern_segments(hungary, slovakia)
+    germany_segments = refined_german_segments(germany, germany_restrictions)
 
     return render_template(
         "index.html",
@@ -48,8 +56,9 @@ def index():
         austria_status=austria_status,
         austria_minimum_depth=minimum_depth,
         germany=germany.to_dict(),
-        germany_segments=list(german_segments(germany).values()),
-        germany_status=germany_overall(germany),
+        germany_restrictions=germany_restrictions.to_dict(),
+        germany_segments=list(germany_segments.values()),
+        germany_status=refined_germany_overall(germany, germany_restrictions),
         hungary=hungary.to_dict(),
         slovakia=slovakia.to_dict(),
         eastern_segments=list(east_segments.values()),
@@ -81,10 +90,12 @@ def api_austria():
 @app.route("/api/germany")
 def api_germany():
     data = fetch_germany_data()
+    restrictions = fetch_germany_restrictions()
     payload = data.to_dict()
     payload.update({
-        "navigation_status": germany_overall(data),
-        "segment_statuses": list(german_segments(data).values()),
+        "navigation_status": refined_germany_overall(data, restrictions),
+        "segment_statuses": list(refined_german_segments(data, restrictions).values()),
+        "fairway_restrictions": restrictions.to_dict(),
         "passau_high_water_threshold_cm": PASSAU_HIGH_WATER_CM,
         "pfelling_rnw_cm": PFELLING_RNW_CM,
         "official_fairway_depths_at_rnw_m": {
