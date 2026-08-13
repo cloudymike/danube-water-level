@@ -12,7 +12,7 @@
     <main class="container">
         <section class="status-card">
             <h2>Route status</h2>
-            <p class="notice">Austria uses official DoRIS fairway depth, closures, lock availability, and high-water rules. Germany uses official PEGELONLINE/ELWIS gauges and separates the critical Vilshofen→Straubing reach. The colors describe what the available authoritative data establish: green means passability is supported, yellow means passability remains undetermined, and red means a restriction or insufficient clearance establishes that the section is not passable under the configured vessel assumptions. Hungary and Slovakia remain undetermined.</p>
+            <p class="notice">The full Budapest→Regensburg route is now connected to official hydrology sources in Hungary, Slovakia, Austria, and Germany. Green means the available authoritative data establish adequate navigation conditions; yellow means passability remains undetermined; red means an official restriction, high-water threshold, or insufficient clearance establishes that the configured vessel cannot pass.</p>
             <div class="legend" aria-label="Navigation status legend">
                 <span><i class="status-dot green"></i> PASSABLE — available data establish adequate navigation conditions</span>
                 <span><i class="status-dot yellow"></i> UNDETERMINED — available data do not establish passability or non-passability</span>
@@ -22,6 +22,16 @@
                 {% for location in route %}
                 <div class="route-stop"><span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span><span>{{ location.name }}{% if location.segment_to is defined %} → {{ location.segment_to }}{% endif %}{% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}<small> — min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>{% endif %}{% if location.official_fairway_depth_m is defined and location.official_fairway_depth_m is not none %}<small> — official {{ location.official_depth_scope }} depth {{ "%.2f"|format(location.official_fairway_depth_m) }} m at RNW</small>{% endif %}</span></div>
                 {% endfor %}
+            </div>
+
+            <div class="data-panel">
+                <h3>Hungary / Slovakia live-data status</h3>
+                <p>Overall Budapest→Bratislava status: <strong>{{ east_status|upper }}</strong><br><small>Hydroinfo and SHMÚ provide authoritative water levels, but the sources used here do not provide a vessel-specific fairway-depth guarantee. Normal conditions therefore remain yellow rather than being promoted to green solely from gauge height.</small></p>
+                <details open><summary>Eastern route segments</summary><ul class="gauge-list">
+                    {% for segment in eastern_segments %}<li><strong>{{ segment["from"] }} → {{ segment["to"] }}: {{ segment.status|upper }}</strong><br><small>{{ segment.reasons|join("; ") }}</small>{% if segment.gauges %}<br><small>Gauges: {% for gauge in segment.gauges %}{{ gauge.name }} {{ gauge.level_cm }} cm{% if not loop.last %}; {% endif %}{% endfor %}</small>{% endif %}</li>{% endfor %}
+                </ul></details>
+                <details><summary>Hungarian Hydroinfo gauges</summary>{% if hungary.error %}<p class="data-error">Hydroinfo unavailable: {{ hungary.error }}</p>{% else %}<ul class="gauge-list">{% for gauge in hungary.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm }} cm{% if gauge.observation_label %} — {{ gauge.observation_label }}{% endif %}</li>{% endfor %}</ul>{% endif %}</details>
+                <details><summary>Slovak SHMÚ gauges</summary>{% if slovakia.error %}<p class="data-error">SHMÚ unavailable: {{ slovakia.error }}</p>{% else %}<ul class="gauge-list">{% for gauge in slovakia.gauges %}<li>{{ gauge.name }}: {{ gauge.level_cm }} cm{% if gauge.flood_stage_1_cm is not none %}, first flood-activity threshold {{ gauge.flood_stage_1_cm|int }} cm{% endif %}</li>{% endfor %}</ul>{% endif %}</details>
             </div>
 
             <div class="data-panel">
