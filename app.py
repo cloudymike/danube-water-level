@@ -20,43 +20,35 @@ ROUTE = [
     {"name": "Regensburg", "lat": 49.0134, "lon": 12.1016, "status": "unknown"},
 ]
 
-# Route segments are keyed by the stop at the downstream/eastern end because
-# map.js colors a GeoJSON feature using its `from` stop. Danube river-km values
-# increase upstream. The boundaries below separate the portions of our displayed
-# route that are relevant to Austrian DoRIS shallow-section information.
-#
-# DoRIS identifies the two free-flowing low-water areas as:
-#   east of Vienna: km 1872.7-1921.0
-#   Wachau:         km 1998.0-2038.0
-#
-# The 2010.0 split corresponds approximately to our Wachau/Dürnstein waypoint,
-# allowing shallow sections on either side to affect different map segments.
 AUSTRIAN_SEGMENT_RANGES = {
-    "Bratislava": {
-        "to": "Vienna",
-        "river_km_min": 1872.7,
-        "river_km_max": 1921.0,
-    },
-    "Vienna": {
-        "to": "Wachau",
-        "river_km_min": 1921.0,
-        "river_km_max": 2010.0,
-    },
-    "Wachau": {
-        "to": "Linz",
-        "river_km_min": 2010.0,
-        "river_km_max": 2135.5,
-    },
-    "Linz": {
-        "to": "Passau",
-        "river_km_min": 2135.5,
-        "river_km_max": 2223.2,
-    },
+    "Bratislava": {"to": "Vienna", "river_km_min": 1872.7, "river_km_max": 1921.0},
+    "Vienna": {"to": "Wachau", "river_km_min": 1921.0, "river_km_max": 2010.0},
+    "Wachau": {"to": "Linz", "river_km_min": 2010.0, "river_km_max": 2135.5},
+    "Linz": {"to": "Passau", "river_km_min": 2135.5, "river_km_max": 2223.2},
 }
+
+# River-km locations of Austrian Danube locks, from the DoRIS closure overview.
+LOCK_RIVER_KM = {
+    "Aschach": 2162.0,
+    "Ottensheim": 2147.0,
+    "Abwinden": 2119.0,
+    "Wallsee": 2095.0,
+    "Ybbs": 2060.0,
+    "Melk": 2038.0,
+    "Altenwörth": 1980.0,
+    "Greifenstein": 1949.0,
+    "Freudenau": 1921.0,
+}
+
+# DoRIS states that navigation between Freudenau and the Slovak border can be
+# prohibited when Wildungsmauer exceeds 600 cm. We conservatively mark our whole
+# Bratislava->Vienna display segment red when that threshold is reached.
+WILDUNGSMAUER_HIGH_WATER_CM = 600
+
+STATUS_RANK = {"unknown": 0, "green": 1, "yellow": 2, "red": 3}
 
 
 def _status_for_depth(minimum_depth):
-    """Convert a deep-channel depth into the prototype navigation status."""
     if minimum_depth is None:
         return "green"
     if minimum_depth < VESSEL_DRAFT_M:
@@ -67,7 +59,6 @@ def _status_for_depth(minimum_depth):
 
 
 def _section_midpoint_km(section):
-    """Return the river-km midpoint of a DoRIS shallow section."""
     start = section.get("river_km_from")
     end = section.get("river_km_to")
     if start is None or end is None:
@@ -75,8 +66,47 @@ def _section_midpoint_km(section):
     return (start + end) / 2
 
 
+def _range_overlaps(a_min, a_max, b_from, b_to):
+    if b_from is None or b_to is None:
+        return False
+    b_min, b_max = sorted((b_from, b_to))
+    return max(a_min, b_min) <= min(a_max, b_max)
+
+
+def _gauge_level(austria_data, name):
+    for gauge in austria_data.gauges:
+        if gauge.get("name", "").lower() == name.lower():
+            return gauge.get("level_cm")
+    return None
+
+
+def _locks_for_segment(austria_data, km_min, km_max):
+    relevant = []
+    for lock in austria_data.locks:
+        km = LOCK_RIVER_KM.get(lock.get("name"))
+        if km is not None and km_min <= km <= km_max:
+            item = lock.copy()
+            item["river_km"] = km
+            relevant.append(item)
+    return relevant
+
+
+def _closures_for_segment(austria_data, km_min, km_max):
+    return [
+        closure
+        for closure in austria_data.closures
+        if _range_overlaps(
+            km_min,
+            km_max,
+            closure.get("river_km_from"),
+            closure.get("river_km_to"),
+        )
+        and not closure.get("is_open", False)
+    ]
+
+
 def _austrian_segment_statuses(austria_data):
-    """Map current DoRIS shallow sections to the route segments they affect."""
+    """Combine low-water depth, official closures, locks, and high water."""
     results = {}
 
     if austria_data.error:
@@ -87,17 +117,22 @@ def _austrian_segment_statuses(austria_data):
                 "status": "unknown",
                 "minimum_depth_m": None,
                 "shallow_sections": [],
-                "reason": "DoRIS data unavailable",
+                "closures": [],
+                "locks": [],
+                "reasons": ["DoRIS data unavailable"],
             }
         return results
 
+    wildungsmauer = _gauge_level(austria_data, "Wildungsmauer")
+
     for from_stop, config in AUSTRIAN_SEGMENT_RANGES.items():
+        km_min = config["river_km_min"]
+        km_max = config["river_km_max"]
+
         relevant_sections = []
         for section in austria_data.shallow_sections:
             midpoint = _section_midpoint_km(section)
-            if midpoint is None:
-                continue
-            if config["river_km_min"] <= midpoint <= config["river_km_max"]:
+            if midpoint is not None and km_min <= midpoint <= km_max:
                 relevant_sections.append(section)
 
         depths = [
@@ -106,33 +141,63 @@ def _austrian_segment_statuses(austria_data):
             if section.get("deep_channel_depth_m") is not None
         ]
         minimum_depth = min(depths) if depths else None
-        status = _status_for_depth(minimum_depth)
+        depth_status = _status_for_depth(minimum_depth)
 
+        closures = _closures_for_segment(austria_data, km_min, km_max)
+        locks = _locks_for_segment(austria_data, km_min, km_max)
+
+        status = depth_status
+        reasons = []
         if relevant_sections:
-            reason = "Minimum DoRIS deep-channel depth in this route segment"
+            reasons.append("Low-water depth from mapped DoRIS shallow sections")
         else:
-            reason = "No current DoRIS shallow section mapped to this route segment"
+            reasons.append("No current DoRIS shallow section mapped to this route segment")
+
+        if closures:
+            status = "red"
+            reasons.append("Official DoRIS navigation closure affects this segment")
+
+        if any(lock.get("both_closed") for lock in locks):
+            status = "red"
+            reasons.append("Both chambers unavailable at a lock in this segment")
+        elif any(lock.get("one_closed") for lock in locks) and STATUS_RANK[status] < STATUS_RANK["yellow"]:
+            status = "yellow"
+            reasons.append("One lock chamber unavailable in this segment")
+
+        high_water = False
+        if (
+            from_stop == "Bratislava"
+            and wildungsmauer is not None
+            and wildungsmauer >= WILDUNGSMAUER_HIGH_WATER_CM
+        ):
+            status = "red"
+            high_water = True
+            reasons.append(
+                f"Wildungsmauer {wildungsmauer:.0f} cm is at/above the 600 cm DoRIS high-water threshold"
+            )
 
         results[from_stop] = {
             "from": from_stop,
             "to": config["to"],
-            "river_km_min": config["river_km_min"],
-            "river_km_max": config["river_km_max"],
+            "river_km_min": km_min,
+            "river_km_max": km_max,
             "status": status,
+            "depth_status": depth_status,
             "minimum_depth_m": minimum_depth,
             "shallow_sections": relevant_sections,
-            "reason": reason,
+            "closures": closures,
+            "locks": locks,
+            "high_water_override": high_water,
+            "wildungsmauer_level_cm": wildungsmauer if from_stop == "Bratislava" else None,
+            "reasons": reasons,
         }
 
     return results
 
 
 def _austria_navigation_status(austria_data):
-    """Return the worst current status across the Austrian displayed segments."""
     segment_statuses = _austrian_segment_statuses(austria_data)
-    rank = {"unknown": 0, "green": 1, "yellow": 2, "red": 3}
-    worst = max(segment_statuses.values(), key=lambda item: rank[item["status"]])
-
+    worst = max(segment_statuses.values(), key=lambda item: STATUS_RANK[item["status"]])
     depths = [
         item["minimum_depth_m"]
         for item in segment_statuses.values()
@@ -149,22 +214,24 @@ def _route_with_austria_status(austria_data):
         segment = segment_statuses.get(stop["name"])
         if not segment:
             continue
-
         stop["status"] = segment["status"]
-        stop["status_source"] = "DoRIS shallow-section depth by river-km"
+        stop["status_source"] = "DoRIS depth + closures + lock states + high-water rules"
         stop["minimum_depth_m"] = segment["minimum_depth_m"]
         stop["segment_to"] = segment["to"]
-        stop["segment_reason"] = segment["reason"]
-        stop["shallow_section_names"] = [
-            section["name"] for section in segment["shallow_sections"]
+        stop["segment_reasons"] = segment["reasons"]
+        stop["shallow_section_names"] = [s["name"] for s in segment["shallow_sections"]]
+        stop["closure_names"] = [c["name"] for c in segment["closures"]]
+        stop["lock_states"] = [
+            f"{lock['name']}: left {lock['left_chamber']}, right {lock['right_chamber']}"
+            for lock in segment["locks"]
         ]
+        stop["high_water_override"] = segment["high_water_override"]
 
     return route
 
 
 @app.route("/")
 def index():
-    """Display the Danube cruise navigation status page."""
     austria = fetch_austria_data()
     route = _route_with_austria_status(austria)
     segment_statuses = _austrian_segment_statuses(austria)
@@ -178,12 +245,12 @@ def index():
         austria_minimum_depth=minimum_depth,
         vessel_draft_m=VESSEL_DRAFT_M,
         safety_margin_m=SAFETY_MARGIN_M,
+        high_water_threshold_cm=WILDUNGSMAUER_HIGH_WATER_CM,
     )
 
 
 @app.route("/api/austria")
 def api_austria():
-    """Return normalized current Austrian DoRIS data and route statuses as JSON."""
     austria = fetch_austria_data()
     segment_statuses = _austrian_segment_statuses(austria)
     status, minimum_depth = _austria_navigation_status(austria)
@@ -195,6 +262,7 @@ def api_austria():
             "segment_statuses": list(segment_statuses.values()),
             "assumed_vessel_draft_m": VESSEL_DRAFT_M,
             "safety_margin_m": SAFETY_MARGIN_M,
+            "wildungsmauer_high_water_threshold_cm": WILDUNGSMAUER_HIGH_WATER_CM,
         }
     )
     return jsonify(payload)
