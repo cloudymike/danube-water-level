@@ -32,6 +32,9 @@ function detailsForStop(stop) {
     if (Array.isArray(stop.lock_states) && stop.lock_states.length) {
         lines.push(`Locks: ${stop.lock_states.join("; ")}`);
     }
+    if (Array.isArray(stop.gauge_states) && stop.gauge_states.length) {
+        lines.push(`Gauges: ${stop.gauge_states.join("; ")}`);
+    }
     if (stop.high_water_override) lines.push("High-water override active");
     return lines.length ? `<br>${lines.join("<br>")}` : "";
 }
