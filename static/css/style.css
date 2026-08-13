@@ -99,16 +99,39 @@ h2 {
     padding-bottom: 0;
 }
 
-#map-placeholder {
+.map-card-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.map-card-heading h2 {
+    margin-bottom: 0.25rem;
+}
+
+.map-card-heading p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+#map {
     min-height: 520px;
-    display: grid;
-    place-items: center;
-    padding: 2rem;
-    border: 2px dashed #cbd5e1;
+    width: 100%;
+    border: 1px solid #cbd5e1;
     border-radius: 8px;
-    background: #f8fafc;
-    color: #64748b;
-    text-align: center;
+    overflow: hidden;
+}
+
+.leaflet-popup-content {
+    line-height: 1.45;
+}
+
+.popup-status {
+    font-weight: 700;
+    text-transform: capitalize;
 }
 
 @media (max-width: 760px) {
@@ -116,7 +139,7 @@ h2 {
         grid-template-columns: 1fr;
     }
 
-    #map-placeholder {
+    #map {
         min-height: 360px;
     }
 }
