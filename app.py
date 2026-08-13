@@ -9,8 +9,11 @@ from services.navigation import (
     PASSAU_HIGH_WATER_CM,
     PFELLING_RNW_CM,
     SAFETY_MARGIN_M,
+    SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M,
+    STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M,
     STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M,
     VESSEL_DRAFT_M,
+    VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M,
     WILDUNGSMAUER_HIGH_WATER_CM,
     austria_overall,
     austrian_segments,
@@ -84,7 +87,14 @@ def api_germany():
         "segment_statuses": list(german_segments(data).values()),
         "passau_high_water_threshold_cm": PASSAU_HIGH_WATER_CM,
         "pfelling_rnw_cm": PFELLING_RNW_CM,
-        "straubing_sand_fairway_depth_at_rnw_m": STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M,
+        "official_fairway_depths_at_rnw_m": {
+            "Passau-Vilshofen": VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M,
+            "Vilshofen-Straubing_controlling": SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M,
+            "Straubing-Sand": STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M,
+            "Straubing-Regensburg": STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M,
+        },
+        "assumed_vessel_draft_m": VESSEL_DRAFT_M,
+        "safety_margin_m": SAFETY_MARGIN_M,
     })
     return jsonify(payload)
 
