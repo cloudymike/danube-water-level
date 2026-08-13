@@ -8,6 +8,14 @@ PFELLING_RNW_CM = 290
 STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M = 2.65
 STRAUBING_SAND_KM_FROM = 2322.0
 STRAUBING_SAND_KM_TO = 2311.5
+SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M = 2.00
+VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M = 2.70
+STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M = 2.90
+PASSAU_REFERENCE_RNW_CM = 415
+HOFKIRCHEN_RNW_CM = 207
+SCHWABELWEIS_RNW_CM = 292
+PFATTER_RNW_CM = 310
+OBERNDORF_RNW_CM = 170
 STATUS_RANK = {"unknown": 0, "green": 1, "yellow": 2, "red": 3}
 
 ROUTE = [
@@ -120,28 +128,122 @@ def _german_gauge_status(gauge):
     return "green", f"{gauge['name']} within published RNW/HSW water-level range"
 
 
+def _all_at_or_above_rnw(gauges):
+    return all(
+        gauge is not None
+        and gauge.get("level_cm") is not None
+        and gauge.get("rnw_cm") is not None
+        and float(gauge["level_cm"]) >= float(gauge["rnw_cm"])
+        for gauge in gauges
+    )
+
+
+def _any_high_water(gauges):
+    for gauge in gauges:
+        if not gauge or gauge.get("level_cm") is None:
+            continue
+        level = float(gauge["level_cm"])
+        hsw = gauge.get("hsw_cm")
+        if str(gauge.get("shipping_state") or "").lower() == "high" or (hsw is not None and level >= float(hsw)):
+            return gauge
+    return None
+
+
 def german_segments(data):
     if data.error:
         return {k: {"from": k, "to": to, "status": "unknown", "gauges": [], "reasons": ["PEGELONLINE data unavailable"]}
                 for k, to in (("Passau", "Vilshofen"), ("Vilshofen", "Straubing"), ("Straubing", "Regensburg"))}
-    passau = _find_gauge(data, "PASSAU DONAU"); hof = _find_gauge(data, "HOFKIRCHEN")
-    pf = _find_gauge(data, "PFELLING"); reg = _find_gauge(data, "REGENSBURG EISERNE BRÜCKE")
-    ps, pr = _german_gauge_status(hof or passau)
-    if passau and passau.get("level_cm") is not None and float(passau["level_cm"]) >= PASSAU_HIGH_WATER_CM:
-        ps = "red"; pr = f"Passau Donau {float(passau['level_cm']):.0f} cm is at/above the 780 cm shipping high-water limit"
-    cs, cr = _german_gauge_status(pf); reasons = [cr]; official = None
-    if pf and pf.get("level_cm") is not None and float(pf["level_cm"]) >= PFELLING_RNW_CM:
-        official = STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M
-        reasons.append(f"Official Straubing→Sand subreach (km {STRAUBING_SAND_KM_FROM:.1f}–{STRAUBING_SAND_KM_TO:.1f}) provides {official:.2f} m fairway depth at Pfelling RNW {PFELLING_RNW_CM} cm")
-    elif pf and pf.get("level_cm") is not None:
-        reasons.append("Pfelling is below RNW; no official simple gauge-to-depth formula is extrapolated")
-    if cs != "red":
-        cs = "yellow"; reasons.append("Remaining Straubing→Vilshofen reach lacks a verified whole-reach fairway-depth relationship")
-    rs, rr = _german_gauge_status(reg or pf)
+
+    passau = _find_gauge(data, "PASSAU DONAU")
+    hof = _find_gauge(data, "HOFKIRCHEN")
+    pf = _find_gauge(data, "PFELLING")
+    pfatter = _find_gauge(data, "PFATTER")
+    schwabelweis = _find_gauge(data, "SCHWABELWEIS")
+    oberndorf = _find_gauge(data, "OBERNDORF")
+
+    # Passau -> Vilshofen: WSV publishes 2.70 m at RNW for both subreaches.
+    passau_gauges = [g for g in (passau, hof) if g]
+    high = _any_high_water(passau_gauges)
+    if high:
+        passau_status = "red"
+        passau_reasons = [f"{high['name']} is at/above its published HSW"]
+    elif passau and hof and passau.get("level_cm") is not None and hof.get("level_cm") is not None:
+        passau_ok = float(passau["level_cm"]) >= PASSAU_REFERENCE_RNW_CM
+        hof_ok = float(hof["level_cm"]) >= HOFKIRCHEN_RNW_CM
+        if passau_ok and hof_ok:
+            passau_status = _status_for_depth(VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M)
+            passau_reasons = [
+                f"Official WSV fairway depth is {VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M:.2f} m at RNW for Vilshofen→Passau",
+                f"Passau Donau is at/above the 415 cm reference level and Hofkirchen is at/above RNW 207 cm",
+            ]
+        else:
+            passau_status = "yellow"
+            passau_reasons = ["One or more WSV reference gauges are below the RNW level used for the published 2.70 m fairway depth; no below-RNW depth is extrapolated"]
+    else:
+        passau_status = "unknown"
+        passau_reasons = ["Required Passau/Hofkirchen reference-gauge data unavailable"]
+
+    # Vilshofen -> Straubing: the controlling published depth is 2.00 m from Sand to Vilshofen.
+    critical_gauges = [g for g in (hof, pf) if g]
+    high = _any_high_water(critical_gauges)
+    if high:
+        critical_status = "red"
+        critical_reasons = [f"{high['name']} is at/above its published HSW"]
+    elif pf and hof and pf.get("level_cm") is not None and hof.get("level_cm") is not None:
+        pf_ok = float(pf["level_cm"]) >= PFELLING_RNW_CM
+        hof_ok = float(hof["level_cm"]) >= HOFKIRCHEN_RNW_CM
+        if pf_ok and hof_ok:
+            critical_status = _status_for_depth(SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M)
+            critical_reasons = [
+                f"Official WSV fairway depth is {SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M:.2f} m for Sand→Vilshofen at Pfelling RNW 290 cm / Hofkirchen RNW 207 cm",
+                f"Straubing→Sand has the larger official depth of {STRAUBING_SAND_FAIRWAY_DEPTH_AT_RNW_M:.2f} m at Pfelling RNW",
+                f"The controlling 2.00 m depth exceeds the configured {VESSEL_DRAFT_M + SAFETY_MARGIN_M:.2f} m draft-plus-margin requirement",
+            ]
+        else:
+            critical_status = "yellow"
+            critical_reasons = ["Pfelling and/or Hofkirchen are below the RNW reference conditions; WSV does not provide a simple below-RNW gauge-to-depth conversion, so passage remains undetermined"]
+    else:
+        critical_status = "unknown"
+        critical_reasons = ["Required Pfelling/Hofkirchen reference-gauge data unavailable"]
+
+    # Straubing -> Regensburg: WSV publishes 2.90 m at the applicable RNW gauges.
+    upstream_gauges = [g for g in (oberndorf, schwabelweis, pfatter) if g]
+    high = _any_high_water(upstream_gauges)
+    if high:
+        upstream_status = "red"
+        upstream_reasons = [f"{high['name']} is at/above its published HSW"]
+    elif len(upstream_gauges) == 3 and _all_at_or_above_rnw(upstream_gauges):
+        upstream_status = _status_for_depth(STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M)
+        upstream_reasons = [
+            f"Official WSV fairway depth is {STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M:.2f} m from the Main-Danube Canal mouth to Straubing at the applicable RNW gauges",
+            "Oberndorf, Schwabelweis, and Pfatter are all at/above their RNW reference levels",
+        ]
+    elif len(upstream_gauges) == 3:
+        upstream_status = "yellow"
+        upstream_reasons = ["At least one applicable RNW reference gauge is below RNW; no below-RNW fairway depth is extrapolated"]
+    else:
+        upstream_status = "unknown"
+        upstream_reasons = ["Required Oberndorf/Schwabelweis/Pfatter reference-gauge data unavailable"]
+
     return {
-        "Passau": {"from": "Passau", "to": "Vilshofen", "status": ps, "gauges": [g for g in (passau, hof) if g], "reasons": [pr, "RNW is not a vessel-specific draft limit"]},
-        "Vilshofen": {"from": "Vilshofen", "to": "Straubing", "status": cs, "gauges": [g for g in (hof, pf) if g], "reasons": reasons, "official_fairway_depth_m": official, "official_depth_scope": "Straubing→Sand only"},
-        "Straubing": {"from": "Straubing", "to": "Regensburg", "status": rs, "gauges": [g for g in (pf, reg) if g], "reasons": [rr, "Gauge status only; no vessel-specific depth conversion applied"]},
+        "Passau": {
+            "from": "Passau", "to": "Vilshofen", "status": passau_status,
+            "gauges": passau_gauges, "reasons": passau_reasons,
+            "official_fairway_depth_m": VILSHOFEN_PASSAU_FAIRWAY_DEPTH_AT_RNW_M,
+            "official_depth_scope": "Vilshofen→Passau at WSV RNW reference conditions",
+        },
+        "Vilshofen": {
+            "from": "Vilshofen", "to": "Straubing", "status": critical_status,
+            "gauges": critical_gauges, "reasons": critical_reasons,
+            "official_fairway_depth_m": SAND_VILSHOFEN_FAIRWAY_DEPTH_AT_RNW_M,
+            "official_depth_scope": "controlling Sand→Vilshofen subreach at RNW",
+        },
+        "Straubing": {
+            "from": "Straubing", "to": "Regensburg", "status": upstream_status,
+            "gauges": upstream_gauges, "reasons": upstream_reasons,
+            "official_fairway_depth_m": STRAUBING_REGENSBURG_FAIRWAY_DEPTH_AT_RNW_M,
+            "official_depth_scope": "main waterway Regensburg/Straubing reach at applicable RNW gauges",
+        },
     }
 
 
@@ -214,7 +316,7 @@ def combined_route(austria, germany, hungary, slovakia):
             stop["closure_names"] = [c["name"] for c in seg.get("closures", [])]
             stop["lock_states"] = [f"{x['name']}: left {x['left_chamber']}, right {x['right_chamber']}" for x in seg.get("locks", [])]
         else:
-            stop["status_source"] = "PEGELONLINE / ELWIS shipping gauges + official fairway statement where available"
+            stop["status_source"] = "PEGELONLINE / ELWIS shipping gauges + official WSV RNW fairway depths"
             stop["official_fairway_depth_m"] = seg.get("official_fairway_depth_m")
             stop["official_depth_scope"] = seg.get("official_depth_scope")
         gauges = seg.get("gauges", [])
