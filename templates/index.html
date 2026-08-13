@@ -24,24 +24,72 @@
         <section class="status-card">
             <h2>Route status</h2>
             <p class="notice">
-                Live water-level data has not been connected yet. Route locations and
-                river sections are shown as undetermined until navigation data and vessel
-                limits are available.
+                Austria is now connected to current official DoRIS fairway information.
+                Other countries remain undetermined. Austrian colors are an indicative
+                prototype based on minimum published deep-channel depth and a configurable
+                vessel draft; they are not yet a guarantee that a particular cruise vessel can pass.
             </p>
 
             <div class="legend" aria-label="Navigation status legend">
-                <span><i class="status-dot green"></i> Passable</span>
-                <span><i class="status-dot yellow"></i> Undetermined</span>
-                <span><i class="status-dot red"></i> Not passable</span>
+                <span><i class="status-dot green"></i> Passable margin</span>
+                <span><i class="status-dot yellow"></i> Undetermined / close to limit</span>
+                <span><i class="status-dot red"></i> Below assumed draft</span>
             </div>
 
             <div class="route-list">
                 {% for location in route %}
                 <div class="route-stop">
                     <span class="status-dot {{ 'yellow' if location.status == 'unknown' else location.status }}"></span>
-                    <span>{{ location.name }}</span>
+                    <span>
+                        {{ location.name }}
+                        {% if location.minimum_depth_m is defined and location.minimum_depth_m is not none %}
+                            <small>— Austria min. deep-channel depth {{ "%.2f"|format(location.minimum_depth_m) }} m</small>
+                        {% endif %}
+                    </span>
                 </div>
                 {% endfor %}
+            </div>
+
+            <div class="data-panel">
+                <h3>Austria live-data prototype</h3>
+                {% if austria.error %}
+                    <p class="data-error">DoRIS data unavailable: {{ austria.error }}</p>
+                {% else %}
+                    <p>
+                        Current status: <strong>{{ austria_status|upper }}</strong><br>
+                        Assumed vessel draft: {{ "%.2f"|format(vessel_draft_m) }} m<br>
+                        Safety margin: {{ "%.2f"|format(safety_margin_m) }} m
+                        {% if austria_minimum_depth is not none %}
+                            <br>Minimum published deep-channel depth: {{ "%.2f"|format(austria_minimum_depth) }} m
+                        {% endif %}
+                    </p>
+                    {% if austria.source_updated_at %}
+                        <p><small>DoRIS source timestamp: {{ austria.source_updated_at }}</small></p>
+                    {% endif %}
+                    <details>
+                        <summary>Current Austrian gauges</summary>
+                        <ul class="gauge-list">
+                            {% for gauge in austria.gauges %}
+                                <li>{{ gauge.name }}: {{ gauge.level_cm|int }} cm</li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    <details>
+                        <summary>Current shallow sections</summary>
+                        <ul class="gauge-list">
+                            {% for section in austria.shallow_sections %}
+                                <li>
+                                    {{ section.name }}:
+                                    {% if section.deep_channel_depth_m is not none %}
+                                        {{ "%.2f"|format(section.deep_channel_depth_m) }} m deep channel
+                                    {% else %}
+                                        depth unavailable
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                {% endif %}
             </div>
         </section>
 
