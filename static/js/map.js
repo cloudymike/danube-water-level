@@ -22,6 +22,11 @@ function detailsForStop(stop) {
     if (stop.minimum_depth_m !== undefined && stop.minimum_depth_m !== null) {
         lines.push(`Minimum deep-channel depth: ${Number(stop.minimum_depth_m).toFixed(2)} m`);
     }
+    if (Array.isArray(stop.shallow_section_names) && stop.shallow_section_names.length) {
+        lines.push(`Mapped shallow sections: ${stop.shallow_section_names.join(", ")}`);
+    } else if (stop.segment_reason) {
+        lines.push(stop.segment_reason);
+    }
     return lines.length ? `<br>${lines.join("<br>")}` : "";
 }
 
