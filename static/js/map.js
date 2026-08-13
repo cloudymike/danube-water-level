@@ -8,31 +8,35 @@ const statusColors = {
 };
 
 const statusLabels = {
-    green: "Passable margin",
-    yellow: "Undetermined / close to limit",
-    red: "Below assumed draft",
+    green: "No identified restriction",
+    yellow: "Caution / reduced margin",
+    red: "Navigation blocked / threshold exceeded",
     unknown: "Undetermined",
 };
 
 function detailsForStop(stop) {
     const lines = [];
-    if (stop.status_source) {
-        lines.push(`Source: ${stop.status_source}`);
-    }
+    if (stop.status_source) lines.push(`Source: ${stop.status_source}`);
     if (stop.minimum_depth_m !== undefined && stop.minimum_depth_m !== null) {
         lines.push(`Minimum deep-channel depth: ${Number(stop.minimum_depth_m).toFixed(2)} m`);
     }
+    if (Array.isArray(stop.segment_reasons)) {
+        stop.segment_reasons.forEach((reason) => lines.push(reason));
+    }
     if (Array.isArray(stop.shallow_section_names) && stop.shallow_section_names.length) {
         lines.push(`Mapped shallow sections: ${stop.shallow_section_names.join(", ")}`);
-    } else if (stop.segment_reason) {
-        lines.push(stop.segment_reason);
     }
+    if (Array.isArray(stop.closure_names) && stop.closure_names.length) {
+        lines.push(`Official closures: ${stop.closure_names.join(", ")}`);
+    }
+    if (Array.isArray(stop.lock_states) && stop.lock_states.length) {
+        lines.push(`Locks: ${stop.lock_states.join("; ")}`);
+    }
+    if (stop.high_water_override) lines.push("High-water override active");
     return lines.length ? `<br>${lines.join("<br>")}` : "";
 }
 
-const map = L.map("map", {
-    scrollWheelZoom: true,
-});
+const map = L.map("map", { scrollWheelZoom: true });
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -46,7 +50,6 @@ route.forEach((stop) => {
     const latLng = [stop.lat, stop.lon];
     const status = stop.status || "unknown";
     const color = statusColors[status] || statusColors.unknown;
-
     mapBounds.extend(latLng);
 
     L.circleMarker(latLng, {
@@ -66,9 +69,7 @@ route.forEach((stop) => {
 
 fetch("/static/data/danube-route.geojson")
     .then((response) => {
-        if (!response.ok) {
-            throw new Error(`Unable to load Danube geometry (${response.status})`);
-        }
+        if (!response.ok) throw new Error(`Unable to load Danube geometry (${response.status})`);
         return response.json();
     })
     .then((geojson) => {
@@ -76,7 +77,6 @@ fetch("/static/data/danube-route.geojson")
             style: (feature) => {
                 const fromStop = stopByName[feature.properties.from];
                 const status = fromStop?.status || "unknown";
-
                 return {
                     color: statusColors[status] || statusColors.unknown,
                     weight: 7,
@@ -90,7 +90,6 @@ fetch("/static/data/danube-route.geojson")
                 const to = feature.properties.to;
                 const fromStop = stopByName[from];
                 const status = fromStop?.status || "unknown";
-
                 layer.bindPopup(
                     `<strong>${from} → ${to}</strong><br>` +
                     `Navigation status: <span class="popup-status">${statusLabels[status] || statusLabels.unknown}</span>` +
@@ -104,9 +103,6 @@ fetch("/static/data/danube-route.geojson")
     })
     .catch((error) => {
         console.error(error);
-        if (mapBounds.isValid()) {
-            map.fitBounds(mapBounds, { padding: [30, 30] });
-        } else {
-            map.setView([48.5, 15.5], 6);
-        }
+        if (mapBounds.isValid()) map.fitBounds(mapBounds, { padding: [30, 30] });
+        else map.setView([48.5, 15.5], 6);
     });
