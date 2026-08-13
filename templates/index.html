@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Danube Cruise Navigation Status</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <h1>Danube Cruise Navigation Status</h1>
+            <p>Budapest → Regensburg</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="status-card">
+            <h2>Route status</h2>
+            <p class="notice">
+                Live water-level data has not been connected yet. Route locations are
+                shown as undetermined until navigation data and vessel limits are available.
+            </p>
+
+            <div class="legend" aria-label="Navigation status legend">
+                <span><i class="status-dot green"></i> Passable</span>
+                <span><i class="status-dot yellow"></i> Undetermined</span>
+                <span><i class="status-dot red"></i> Not passable</span>
+            </div>
+
+            <div class="route-list">
+                {% for location in route %}
+                <div class="route-stop">
+                    <span class="status-dot yellow"></span>
+                    <span>{{ location.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="map-card">
+            <h2>Danube map</h2>
+            <div id="map-placeholder">
+                Interactive Leaflet map will be added in the next step.
+            </div>
+        </section>
+    </main>
+</body>
+</html>
