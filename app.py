@@ -4,6 +4,7 @@ from services.austria import fetch_austria_data
 from services.germany import fetch_germany_data
 from services.hungary import fetch_hungary_data
 from services.slovakia import fetch_slovakia_data
+from services.operational import apply_operational_evidence, current_operational_evidence
 from services.navigation import (
     PASSAU_HIGH_WATER_CM,
     PFELLING_RNW_CM,
@@ -30,13 +31,15 @@ def index():
     hungary = fetch_hungary_data()
     slovakia = fetch_slovakia_data()
 
-    route = combined_route(austria, germany, hungary, slovakia)
+    operational = current_operational_evidence()
+    route = apply_operational_evidence(combined_route(austria, germany, hungary, slovakia), operational)
     austria_status, minimum_depth = austria_overall(austria)
     east_segments = eastern_segments(hungary, slovakia)
 
     return render_template(
         "index.html",
         route=route,
+        operational_evidence=list(operational.values()),
         austria=austria.to_dict(),
         austria_segments=list(austrian_segments(austria).values()),
         austria_status=austria_status,
@@ -108,6 +111,11 @@ def api_slovakia():
         "segment_statuses": list(eastern_segments(hungary, slovakia).values()),
     })
     return jsonify(payload)
+
+
+@app.route("/api/operations")
+def api_operations():
+    return jsonify({"operational_evidence": list(current_operational_evidence().values())})
 
 
 if __name__ == "__main__":
