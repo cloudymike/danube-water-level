@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="850" viewBox="0 0 1400 850">
+<rect width="1400" height="850" fill="#f3f4f6"/><rect width="1400" height="90" fill="#fff"/>
+<text x="80" y="48" font-family="system-ui,sans-serif" font-size="28" font-weight="700" fill="#1f2937">Danube Cruise Navigation Status</text><text x="80" y="72" font-family="system-ui,sans-serif" font-size="15" fill="#6b7280">Budapest → Regensburg</text>
+<rect x="60" y="120" width="510" height="680" rx="10" fill="#fff" stroke="#d1d5db"/><rect x="600" y="120" width="740" height="680" rx="10" fill="#fff" stroke="#d1d5db"/>
+<text x="85" y="170" font-family="system-ui,sans-serif" font-size="21" font-weight="700" fill="#1f2937">Route status</text><text x="85" y="195" font-family="system-ui,sans-serif" font-size="13" fill="#4b5563">Data loaded: 8/14/2026, 9:33 AM</text><rect x="410" y="170" width="125" height="31" rx="6" fill="#f9fafb" stroke="#9ca3af"/><text x="430" y="190" font-family="system-ui,sans-serif" font-size="13" fill="#1f2937">Refresh data</text>
+<g font-family="system-ui,sans-serif" font-size="12" fill="#374151"><circle cx="92" cy="230" r="7" fill="#166534"/><text x="110" y="234">PASSABLE</text><circle cx="92" cy="257" r="7" fill="#84cc16"/><text x="110" y="261">OBSERVED PASSABLE</text><circle cx="92" cy="284" r="7" fill="#eab308"/><text x="110" y="288">UNDETERMINED</text><circle cx="92" cy="311" r="7" fill="#f97316"/><text x="110" y="315">OBSERVED DISRUPTION</text><circle cx="92" cy="338" r="7" fill="#dc2626"/><text x="110" y="342">NOT PASSABLE</text></g>
+<line x1="85" y1="365" x2="540" y2="365" stroke="#e5e7eb"/><g font-family="system-ui,sans-serif" font-size="15" fill="#1f2937"><circle cx="92" cy="395" r="7" fill="#f97316"/><text x="110" y="400">Budapest → Esztergom</text><circle cx="92" cy="431" r="7" fill="#f97316"/><text x="110" y="436">Esztergom → Komárno</text><circle cx="92" cy="467" r="7" fill="#f97316"/><text x="110" y="472">Komárno → Bratislava</text><circle cx="92" cy="503" r="7" fill="#166534"/><text x="110" y="508">Bratislava → Vienna</text><circle cx="92" cy="539" r="7" fill="#166534"/><text x="110" y="544">Vienna → Wachau</text><circle cx="92" cy="575" r="7" fill="#166534"/><text x="110" y="580">Wachau → Linz</text><circle cx="92" cy="611" r="7" fill="#166534"/><text x="110" y="616">Linz → Passau</text><circle cx="92" cy="647" r="7" fill="#166534"/><text x="110" y="652">Passau → Vilshofen</text><circle cx="92" cy="683" r="7" fill="#166534"/><text x="110" y="688">Vilshofen → Straubing</text><circle cx="92" cy="719" r="7" fill="#166534"/><text x="110" y="724">Straubing → Regensburg</text></g>
+<text x="625" y="170" font-family="system-ui,sans-serif" font-size="21" font-weight="700" fill="#1f2937">Danube map</text><text x="625" y="195" font-family="system-ui,sans-serif" font-size="13" fill="#6b7280">Click a stop or route section for authoritative and operational evidence.</text>
+<defs><clipPath id="mapclip"><rect x="625" y="215" width="690" height="535" rx="7"/></clipPath></defs>
+<g clip-path="url(#mapclip)">
+<rect x="625" y="215" width="690" height="535" fill="#eef1e8"/>
+<!-- map-style country/terrain areas -->
+<path d="M625 215H860L846 270L805 314L775 360L735 400L690 420L650 400Z" fill="#e6eadf" stroke="#c9cec3"/>
+<path d="M780 215H1115L1100 285L1040 340L990 390L920 430L850 455L790 425L750 375L805 310Z" fill="#f1eee2" stroke="#c9cec3"/>
+<path d="M1080 335L1315 310V590L1245 620L1190 585L1135 535L1090 470Z" fill="#e8eddf" stroke="#c9cec3"/>
+<path d="M1130 500L1315 500V750H1045L1090 660Z" fill="#f3eee2" stroke="#c9cec3"/>
+<!-- relief and light road network -->
+<g fill="none" stroke="#d9ddce" stroke-width="1.2" opacity=".9"><path d="M650 255C760 300 830 275 930 315S1120 350 1285 330"/><path d="M655 370C770 390 845 350 955 380S1125 430 1290 410"/><path d="M640 515C750 475 870 500 980 530S1170 555 1300 525"/><path d="M655 650C770 615 880 635 990 665S1175 680 1300 640"/></g>
+<g fill="none" stroke="#d0c7b8" stroke-width="2" opacity=".7"><path d="M655 278C760 320 840 340 925 390S1070 470 1235 610"/><path d="M690 705C785 620 835 565 925 500S1100 410 1280 360"/><path d="M665 300C760 295 850 320 955 350S1150 400 1280 470"/></g>
+<!-- neighboring rivers for basemap context -->
+<g fill="none" stroke="#9fc8e0" stroke-width="2.5" opacity=".75"><path d="M690 215C710 255 720 295 700 330S670 385 680 430"/><path d="M925 215C935 275 950 320 940 365S925 420 940 470"/><path d="M1210 300C1235 350 1250 405 1240 460S1220 525 1230 580"/></g>
+<!-- actual project Danube geometry, projected from static/data/danube-route.geojson -->
+<g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="8">
+<polyline points="1280.6,697.6 1283.8,649.6 1274.3,617.1 1253.5,617.0" stroke="#f97316"/>
+<polyline points="1253.5,617.0 1233.6,621.4 1215.4,624.8 1198.4,623.2" stroke="#f97316"/>
+<polyline points="1198.4,623.2 1170.4,615.8 1148.8,587.8 1123.5,551.4 1106.1,515.4" stroke="#f97316"/>
+<polyline points="1106.1,515.4 1091.4,516.1 1077.4,519.2 1069.3,517.8 1055.8,509.4 1039.9,498.7" stroke="#166534"/>
+<polyline points="1039.9,498.7 1035.5,471.6 1020.6,466.0 1011.3,464.3 992.6,453.4 970.0,442.2 962.8,446.4" stroke="#166534"/>
+<polyline points="962.8,446.4 954.7,459.0 945.7,493.4 923.4,507.4 903.0,493.2 884.2,488.4 872.2,489.5 851.4,471.1" stroke="#166534"/>
+<polyline points="851.4,471.1 841.3,463.8 827.5,455.1 813.8,439.7 801.2,417.0 786.7,405.8 774.3,398.3" stroke="#166534"/>
+<polyline points="774.3,398.3 767.8,391.8 762.4,386.2 755.3,381.7 752.2,379.5" stroke="#166534"/>
+<polyline points="752.2,379.5 740.7,344.2 731.7,321.8 713.6,310.6 696.7,310.3" stroke="#166534"/>
+<polyline points="696.7,310.3 681.6,277.0 663.5,268.0 653.8,271.5" stroke="#166534"/>
+</g>
+<!-- route stops -->
+<g stroke="#fff" stroke-width="2.5">
+<circle cx="1280.6" cy="697.6" r="7" fill="#f97316"/><circle cx="1253.5" cy="617" r="7" fill="#f97316"/><circle cx="1198.4" cy="623.2" r="7" fill="#f97316"/><circle cx="1106.1" cy="515.4" r="7" fill="#166534"/><circle cx="1039.9" cy="498.7" r="7" fill="#166534"/><circle cx="962.8" cy="446.4" r="7" fill="#166534"/><circle cx="851.4" cy="471.1" r="7" fill="#166534"/><circle cx="774.3" cy="398.3" r="7" fill="#166534"/><circle cx="752.2" cy="379.5" r="7" fill="#166534"/><circle cx="696.7" cy="310.3" r="7" fill="#166534"/><circle cx="653.8" cy="271.5" r="7" fill="#166534"/>
+</g>
+<!-- labels -->
+<g font-family="system-ui,sans-serif" fill="#4b5563"><g font-size="17" font-weight="600" opacity=".55"><text x="680" y="245">GERMANY</text><text x="875" y="300">AUSTRIA</text><text x="1140" y="420">SLOVAKIA</text><text x="1170" y="690">HUNGARY</text></g><g font-size="11" font-weight="600"><text x="1260" y="718">Budapest</text><text x="1235" y="603">Esztergom</text><text x="1182" y="644">Komárno</text><text x="1112" y="503">Bratislava</text><text x="1047" y="487">Vienna</text><text x="969" y="435">Wachau</text><text x="858" y="459">Linz</text><text x="781" y="387">Passau</text><text x="758" y="368">Vilshofen</text><text x="704" y="299">Straubing</text><text x="660" y="260">Regensburg</text></g></g>
+<text x="1282" y="742" text-anchor="end" font-family="system-ui,sans-serif" font-size="9" fill="#7c827b">Static map-style preview</text>
+</g>
+<rect x="625" y="215" width="690" height="535" rx="7" fill="none" stroke="#cbd5e1"/>
+<text x="625" y="778" font-family="system-ui,sans-serif" font-size="12" fill="#6b7280">Preview uses the app's Danube route geometry; route colors change with live upstream data.</text></svg>
