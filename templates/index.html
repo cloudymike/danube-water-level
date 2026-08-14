@@ -11,6 +11,7 @@
 <main class="container">
 <section class="status-card">
 <h2>Route status</h2>
+<div class="refresh-bar"><span>Data loaded: <time id="data-loaded-time"></time></span><button type="button" class="refresh-button" onclick="window.location.reload()">Refresh data</button></div>
 <p class="notice">The map separates <strong>authoritative navigation status</strong> from <strong>operational cruise evidence</strong>. Green/red come from official depth, closure, lock, high-water, and German ELWIS fairway-restriction information. Lime/orange refine otherwise-undetermined sections using recent observed cruise operations; they are evidence, not navigation guarantees.</p>
 <div class="legend" aria-label="Navigation status legend">
 <span><i class="status-dot green"></i> PASSABLE — authoritative data establish adequate conditions</span>
@@ -50,6 +51,7 @@
 </section>
 <section class="map-card"><div class="map-card-heading"><div><h2>Danube map</h2><p>Click a stop or route section for authoritative and operational evidence.</p></div></div><div id="map" aria-label="Map of the Danube route from Budapest to Regensburg"></div></section>
 </main>
+<script>document.getElementById("data-loaded-time").textContent = new Date().toLocaleString();</script>
 <script>window.DANUBE_ROUTE = {{ route | tojson }};</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="{{ url_for('static', filename='js/map.js') }}"></script>
