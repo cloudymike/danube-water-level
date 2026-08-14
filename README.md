@@ -4,6 +4,25 @@ A Flask web application that shows river-cruise navigation status along the Danu
 
 The application combines official river/navigation data with separate operational cruise evidence and displays the result on an interactive Leaflet/OpenStreetMap map.
 
+## Run locally
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+flask --app app run --debug
+```
+
+On Windows PowerShell:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Then open:
+
+`http://127.0.0.1:5000`
+
 ## Application preview
 
 ![Danube Cruise Navigation Status interface](docs/screenshot.svg)
@@ -161,25 +180,6 @@ static/
 templates/
     index.html
 ```
-
-## Run locally
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-flask --app app run --debug
-```
-
-On Windows PowerShell:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Then open:
-
-`http://127.0.0.1:5000`
 
 ## Limitations
 
