@@ -4,6 +4,12 @@ A Flask web application that shows river-cruise navigation status along the Danu
 
 The application combines official river/navigation data with separate operational cruise evidence and displays the result on an interactive Leaflet/OpenStreetMap map.
 
+## Application preview
+
+![Danube Cruise Navigation Status interface](docs/screenshot.svg)
+
+*Example interface. Route colors change with live upstream data.*
+
 ## Route
 
 Budapest → Esztergom → Komárno → Bratislava → Vienna → Wachau → Linz → Passau → Vilshofen → Straubing → Regensburg
